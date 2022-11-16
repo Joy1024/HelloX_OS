@@ -36,10 +36,6 @@ AC_USE_SYSTEM_EXTENSIONS
 
 AM_CONDITIONAL([COMPILE_TIME_RELOC_CHECKS],[AC_COMPILE_IFELSE], [true])
 
-
-
-
-
 # Checks for libraries.
 
 # Checks for header files.

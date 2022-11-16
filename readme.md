@@ -1,13 +1,17 @@
-**** CHINESE VERSION ****
+\***\* CHINESE VERSION \*\***
+
 # 感谢
-感谢试用HelloX V1.78测试版。
-> 在bin目录下，已经生成了一个虚拟硬盘vdisk.vhd，可以用这个虚拟硬盘直接引导虚拟机。
 
-> 如果希望通过USB来引导物理计算机，则运行bin目录下的make_usb_boot程序（运行前，先把USB盘插入计算机），格式化一个USB引导盘，再重新启动计算机即可。
+感谢试用 HelloX V1.78 测试版。
 
-> 注意，制作USB启动盘之前，请先备份里面的数据。同时，需要设置计算机的引导顺序，确保USB引导优先。 祝您使用愉快！
+> 在 bin 目录下，已经生成了一个虚拟硬盘 vdisk.vhd，可以用这个虚拟硬盘直接引导虚拟机。
+
+> 如果希望通过 USB 来引导物理计算机，则运行 bin 目录下的 make_usb_boot 程序（运行前，先把 USB 盘插入计算机），格式化一个 USB 引导盘，再重新启动计算机即可。
+
+> 注意，制作 USB 启动盘之前，请先备份里面的数据。同时，需要设置计算机的引导顺序，确保 USB 引导优先。 祝您使用愉快！
 
 # 目录结构：
+
 ```sh
 /app # 存放了基于HelloX开发的一些应用程序，主要是基于GUI模式开发的一些测试程序；
 /bin # 存放了可以直接引导虚拟机的虚拟硬盘（VHD）文件，以及生成引导物理计算机的相关工具和原始二进制文件；
@@ -17,13 +21,28 @@
 /tools #存放了支撑HelloX开发及应用相关的工具的源代码，比如引导设备制作工具，二进制处理工具，等等。
 ```
 
+# 文档
+
+```sh
+doc/*
+```
+
+# 构建
+
+### Ubuntu
+
+> 点击进入 [Automake](doc/automake.md) 文档
+
+### Windows
+
 # 讨论
+
 ```sh
 微信：gaojiex1314
 QQ群：38467832
-``` 
+```
 
-**** ENGLISH VERSION ****
+\***\* ENGLISH VERSION \*\***
 
 Welcome to use HelloX V1.78 beta version.
 A virtual hard disk image was created under the /bin directory,which can be used to load virtual machine directly.The main stream virtual machines can be well supported by HelloX,such as Microsoft Virtual PC 2007,WMWare workstation,Oracle VirtualBox,Microsoft Hyper-V.

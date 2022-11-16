@@ -1,19 +1,27 @@
 **** CHINESE VERSION ****
+# æ„Ÿè°¢
+æ„Ÿè°¢è¯•ç”¨HelloX V1.78æµ‹è¯•ç‰ˆã€‚
+> åœ¨binç›®å½•ä¸‹ï¼Œå·²ç»ç”Ÿæˆäº†ä¸€ä¸ªè™šæ‹Ÿç¡¬ç›˜vdisk.vhdï¼Œå¯ä»¥ç”¨è¿™ä¸ªè™šæ‹Ÿç¡¬ç›˜ç›´æŽ¥å¼•å¯¼è™šæ‹Ÿæœºã€‚
 
-¸ÐÐ»ÊÔÓÃHelloX V1.78²âÊÔ°æ¡£
-ÔÚbinÄ¿Â¼ÏÂ£¬ÒÑ¾­Éú³ÉÁËÒ»¸öÐéÄâÓ²ÅÌvdisk.vhd£¬¿ÉÒÔÓÃÕâ¸öÐéÄâÓ²ÅÌÖ±½ÓÒýµ¼ÐéÄâ»ú¡£
-Èç¹ûÏ£ÍûÍ¨¹ýUSBÀ´Òýµ¼ÎïÀí¼ÆËã»ú£¬ÔòÔËÐÐbinÄ¿Â¼ÏÂµÄmake_usb_boot³ÌÐò£¨ÔËÐÐÇ°£¬ÏÈ°ÑUSBÅÌ²åÈë¼ÆËã»ú£©£¬¸ñÊ½»¯Ò»¸öUSBÒýµ¼ÅÌ£¬ÔÙÖØÐÂÆô¶¯¼ÆËã»ú¼´¿É¡£×¢Òâ£¬ÖÆ×÷USBÆô¶¯ÅÌÖ®Ç°£¬ÇëÏÈ±¸·ÝÀïÃæµÄÊý¾Ý¡£Í¬Ê±£¬ÐèÒªÉèÖÃ¼ÆËã»úµÄÒýµ¼Ë³Ðò£¬È·±£USBÒýµ¼ÓÅÏÈ¡£
-×£ÄúÊ¹ÓÃÓä¿ì£¡
+> å¦‚æžœå¸Œæœ›é€šè¿‡USBæ¥å¼•å¯¼ç‰©ç†è®¡ç®—æœºï¼Œåˆ™è¿è¡Œbinç›®å½•ä¸‹çš„make_usb_bootç¨‹åºï¼ˆè¿è¡Œå‰ï¼Œå…ˆæŠŠUSBç›˜æ’å…¥è®¡ç®—æœºï¼‰ï¼Œæ ¼å¼åŒ–ä¸€ä¸ªUSBå¼•å¯¼ç›˜ï¼Œå†é‡æ–°å¯åŠ¨è®¡ç®—æœºå³å¯ã€‚
 
-¸÷Ä¿Â¼µÄÖ÷ÒªÄÚÈÝÈçÏÂ£º
-/app£º´æ·ÅÁË»ùÓÚHelloX¿ª·¢µÄÒ»Ð©Ó¦ÓÃ³ÌÐò£¬Ö÷ÒªÊÇ»ùÓÚGUIÄ£Ê½¿ª·¢µÄÒ»Ð©²âÊÔ³ÌÐò£»
-/bin£º´æ·ÅÁË¿ÉÒÔÖ±½ÓÒýµ¼ÐéÄâ»úµÄÐéÄâÓ²ÅÌ£¨VHD£©ÎÄ¼þ£¬ÒÔ¼°Éú³ÉÒýµ¼ÎïÀí¼ÆËã»úµÄÏà¹Ø¹¤¾ßºÍÔ­Ê¼¶þ½øÖÆÎÄ¼þ£»
-/gui£ºHelloX GUIÄ£¿éÔ´´úÂë£»
-/kernel£ºHelloXÄÚºËÔ´´úÂë£¬°üº¬ÄÚºË/ÍøÂçÐ­ÒéÕ»/JavaÐéÄâ»ú/ÎÄ¼þÏµÍ³µÈ²¿·ÖµÄÔ´´úÂë£»
-/sdk£ºÓÃÓÚ¿ª·¢HelloXËùÐèµÄÏà¹ØÎÄ¼þ£¬ÓÃÓÚÓ¦ÓÃ³ÌÐò¿ª·¢£»
-/tools£º´æ·ÅÁËÖ§³ÅHelloX¿ª·¢¼°Ó¦ÓÃÏà¹ØµÄ¹¤¾ßµÄÔ´´úÂë£¬±ÈÈçÒýµ¼Éè±¸ÖÆ×÷¹¤¾ß£¬¶þ½øÖÆ´¦Àí¹¤¾ß£¬µÈµÈ¡£
+> æ³¨æ„ï¼Œåˆ¶ä½œUSBå¯åŠ¨ç›˜ä¹‹å‰ï¼Œè¯·å…ˆå¤‡ä»½é‡Œé¢çš„æ•°æ®ã€‚åŒæ—¶ï¼Œéœ€è¦è®¾ç½®è®¡ç®—æœºçš„å¼•å¯¼é¡ºåºï¼Œç¡®ä¿USBå¼•å¯¼ä¼˜å…ˆã€‚ ç¥æ‚¨ä½¿ç”¨æ„‰å¿«ï¼
 
-ÈÎºÎÎÊÌâ£¬»¶Ó­¼ÓÈëQQÈºÌÖÂÛ£º38467832
+# ç›®å½•ç»“æž„ï¼š
+```sh
+/app # å­˜æ”¾äº†åŸºäºŽHelloXå¼€å‘çš„ä¸€äº›åº”ç”¨ç¨‹åºï¼Œä¸»è¦æ˜¯åŸºäºŽGUIæ¨¡å¼å¼€å‘çš„ä¸€äº›æµ‹è¯•ç¨‹åºï¼›
+/bin # å­˜æ”¾äº†å¯ä»¥ç›´æŽ¥å¼•å¯¼è™šæ‹Ÿæœºçš„è™šæ‹Ÿç¡¬ç›˜ï¼ˆVHDï¼‰æ–‡ä»¶ï¼Œä»¥åŠç”Ÿæˆå¼•å¯¼ç‰©ç†è®¡ç®—æœºçš„ç›¸å…³å·¥å…·å’ŒåŽŸå§‹äºŒè¿›åˆ¶æ–‡ä»¶ï¼›
+/gui # HelloX GUIæ¨¡å—æºä»£ç ï¼›
+/kernel #HelloXå†…æ ¸æºä»£ç ï¼ŒåŒ…å«å†…æ ¸/ç½‘ç»œåè®®æ ˆ/Javaè™šæ‹Ÿæœº/æ–‡ä»¶ç³»ç»Ÿç­‰éƒ¨åˆ†çš„æºä»£ç ï¼›
+/sdk #ç”¨äºŽå¼€å‘HelloXæ‰€éœ€çš„ç›¸å…³æ–‡ä»¶ï¼Œç”¨äºŽåº”ç”¨ç¨‹åºå¼€å‘ï¼›
+/tools #å­˜æ”¾äº†æ”¯æ’‘HelloXå¼€å‘åŠåº”ç”¨ç›¸å…³çš„å·¥å…·çš„æºä»£ç ï¼Œæ¯”å¦‚å¼•å¯¼è®¾å¤‡åˆ¶ä½œå·¥å…·ï¼ŒäºŒè¿›åˆ¶å¤„ç†å·¥å…·ï¼Œç­‰ç­‰ã€‚
+```
+
+# è®¨è®º
+```sh
+å¾®ä¿¡ï¼šgaojiex1314
+QQç¾¤ï¼š38467832
+``` 
 
 **** ENGLISH VERSION ****
 

@@ -83,6 +83,8 @@
 #include "netif/etharp.h"
 
 #include <string.h>
+#include <proto.h>
+#include <netmgr.h>
 
 /** Default for DHCP_GLOBAL_XID is 0xABCD0000
  * This can be changed by defining DHCP_GLOBAL_XID and DHCP_GLOBAL_XID_HEADER, e.g.
@@ -183,14 +185,31 @@ static void
 dhcp_handle_nak(struct netif *netif)
 {
   struct dhcp *dhcp = netif->dhcp;
+  __COMMON_NETWORK_ADDRESS commaddr[3];
+
   LWIP_DEBUGF(DHCP_DEBUG | LWIP_DBG_TRACE, ("dhcp_handle_nak(netif=%p) %c%c%"U16_F"\n", 
     (void*)netif, netif->name[0], netif->name[1], (u16_t)netif->num));
   /* Set the interface down since the address must no longer be used, as per RFC2131 */
   netif_set_down(netif);
+
   /* remove IP address from interface */
+  /*
   netif_set_ipaddr(netif, IP_ADDR_ANY);
   netif_set_gw(netif, IP_ADDR_ANY);
   netif_set_netmask(netif, IP_ADDR_ANY); 
+  */
+  /* Use network manager's interface to remove ip address. */
+  BUG_ON(NULL == netif->pGenif);
+  commaddr[0].AddressType = NETWORK_ADDRESS_TYPE_IPV4;
+  commaddr[0].Address.ipv4_addr = IPADDR_ANY;
+  commaddr[1].AddressType = NETWORK_ADDRESS_TYPE_IPV4;
+  commaddr[1].Address.ipv4_addr = IPADDR_ANY;
+  commaddr[2].AddressType = NETWORK_ADDRESS_TYPE_IPV4;
+  commaddr[2].Address.ipv4_addr = IPADDR_ANY;
+  NetworkManager.AddGenifAddress(netif->pGenif->if_index,
+	  NETWORK_PROTOCOL_TYPE_IPV4,
+	  commaddr, 3, FALSE);
+
   /* Change to a defined state */
   dhcp_set_state(dhcp, DHCP_BACKING_OFF);
   /* We can immediately restart discovery */
@@ -925,6 +944,8 @@ dhcp_bind(struct netif *netif)
   u32_t timeout;
   struct dhcp *dhcp;
   ip_addr_t sn_mask, gw_addr;
+  __COMMON_NETWORK_ADDRESS commaddr[3];
+
   LWIP_ERROR("dhcp_bind: netif != NULL", (netif != NULL), return;);
   dhcp = netif->dhcp;
   LWIP_ERROR("dhcp_bind: dhcp != NULL", (dhcp != NULL), return;);
@@ -989,6 +1010,7 @@ dhcp_bind(struct netif *netif)
   }
 #endif /* LWIP_DHCP_AUTOIP_COOP */
 
+  /*
   LWIP_DEBUGF(DHCP_DEBUG | LWIP_DBG_STATE, ("dhcp_bind(): IP: 0x%08"X32_F"\n",
     ip4_addr_get_u32(&dhcp->offered_ip_addr)));
   netif_set_ipaddr(netif, &dhcp->offered_ip_addr);
@@ -998,6 +1020,20 @@ dhcp_bind(struct netif *netif)
   LWIP_DEBUGF(DHCP_DEBUG | LWIP_DBG_STATE, ("dhcp_bind(): GW: 0x%08"X32_F"\n",
     ip4_addr_get_u32(&gw_addr)));
   netif_set_gw(netif, &gw_addr);
+  */
+
+  /* Use network manager's interface to set address to netif. */
+  BUG_ON(NULL == netif->pGenif);
+  commaddr[0].AddressType = NETWORK_ADDRESS_TYPE_IPV4;
+  commaddr[0].Address.ipv4_addr = dhcp->offered_ip_addr.addr;
+  commaddr[1].AddressType = NETWORK_ADDRESS_TYPE_IPV4;
+  commaddr[1].Address.ipv4_addr = sn_mask.addr;
+  commaddr[2].AddressType = NETWORK_ADDRESS_TYPE_IPV4;
+  commaddr[2].Address.ipv4_addr = gw_addr.addr;
+  NetworkManager.AddGenifAddress(netif->pGenif->if_index, 
+	  NETWORK_PROTOCOL_TYPE_IPV4, 
+	  commaddr, 3, FALSE);
+
   /* bring the interface up */
   netif_set_up(netif);
   /* netif is now bound to DHCP leased address */
@@ -1180,6 +1216,8 @@ dhcp_release(struct netif *netif)
   struct dhcp *dhcp = netif->dhcp;
   err_t result;
   u16_t msecs;
+  __COMMON_NETWORK_ADDRESS commaddr[3];
+
   LWIP_DEBUGF(DHCP_DEBUG | LWIP_DBG_TRACE, ("dhcp_release()\n"));
 
   /* idle DHCP client */
@@ -1214,9 +1252,22 @@ dhcp_release(struct netif *netif)
   /* bring the interface down */
   netif_set_down(netif);
   /* remove IP address from interface */
+  /*
   netif_set_ipaddr(netif, IP_ADDR_ANY);
   netif_set_gw(netif, IP_ADDR_ANY);
   netif_set_netmask(netif, IP_ADDR_ANY);
+  */
+  /* Use network manager's interface to remove IP address. */
+  BUG_ON(NULL == netif->pGenif);
+  commaddr[0].AddressType = NETWORK_ADDRESS_TYPE_IPV4;
+  commaddr[0].Address.ipv4_addr = IPADDR_ANY;
+  commaddr[1].AddressType = NETWORK_ADDRESS_TYPE_IPV4;
+  commaddr[1].Address.ipv4_addr = IPADDR_ANY;
+  commaddr[2].AddressType = NETWORK_ADDRESS_TYPE_IPV4;
+  commaddr[2].Address.ipv4_addr = IPADDR_ANY;
+  NetworkManager.AddGenifAddress(netif->pGenif->if_index,
+	  NETWORK_PROTOCOL_TYPE_IPV4,
+	  commaddr, 3, FALSE);
   
   return result;
 }

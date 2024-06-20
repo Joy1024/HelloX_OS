@@ -59,4 +59,27 @@ BOOL Start_AP();
 /* Stop all application processors. */
 BOOL Stop_AP();
 
+/* 
+ * CAS(Compare and Swap) intrutions under x86 SMP. 
+ * Compare [dest] with old_val, if equal then load [dest] with new_val and
+ * return the old_val, otherwise return the new_val.
+ */
+inline uint32_t __compare_and_swap(volatile uint32_t* dest, uint32_t new_val, uint32_t old_val)
+{
+	uint32_t ret_val = old_val;
+
+	__asm {
+		push ebx
+		push edx
+		mov ebx, dest
+		mov eax, old_val
+		mov edx, new_val
+		lock cmpxchg dword ptr[ebx], edx
+		mov ret_val, eax
+		pop edx
+		pop ebx
+	}
+	return ret_val;
+}
+
 #endif  //__SMPX86_H__

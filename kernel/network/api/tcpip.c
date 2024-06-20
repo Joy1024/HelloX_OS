@@ -46,6 +46,7 @@
 #include "lwip/pbuf.h"
 #include "lwip/tcpip.h"
 #include "lwip/init.h"
+#include "lwip/stats.h"
 #include "netif/etharp.h"
 #include "netif/ppp_oe.h"
 
@@ -212,8 +213,26 @@ tcpip_thread(void *arg)
 					}
 					__LEAVE_CRITICAL_SECTION_SMP(pExt->spin_lock, dwFlags);
 				}
-				/* Process it. */
-				ip_send_directly(pOutPkt->p, pOutPkt->out_if);
+				/* Process it, invoke different routine according send flag. */
+				if (pOutPkt->send_direct)
+				{
+					ip_send_directly(pOutPkt->p, pOutPkt->out_if);
+				}
+				else {
+					/* 
+					 * Use general ip output routine, the ip header 
+					 * is constructed in it.
+					 */
+					if (ip_output(pOutPkt->p, &pOutPkt->src_addr,
+						&pOutPkt->dst_addr, pOutPkt->ttl,
+						pOutPkt->tos, pOutPkt->protocol))
+					{
+						IP_STATS_INC(ip.ctx_xmit_err);
+					}
+				}
+				IP_STATS_INC(ip.ctx_xmit);
+				/* Release pbuf object. */
+				pbuf_free(pOutPkt->p);
 				/* Release the structure. */
 				_hx_free(pOutPkt);
 				if (bShouldBreak)
@@ -362,17 +381,40 @@ tcpip_input(struct pbuf *p, struct netif *inp)
 * to TCP/IP thread;
 * step 2: TCP/IP thread will dispatch the out going packet in a
 * while batch.
+*
+* NOTE: This routine runs in asynchronous mode, i.e, it send a 
+* message to tcpip thread and hook the pbuf in sending list,
+* and return immediately. So pbuf must be kept without freeing
+* before tcpip thread sending over, but pbuf with PBUF_REF
+* type's memory buffer maybe released after this function return,
+* thus lead illegal memory accessing. In order to avoid this
+* scenario, we just do not support the pbuf with PBUF_REF and
+* PBUF_ROM types.
 */
-err_t tcpip_output(struct pbuf *p, struct netif *out_if)
+err_t tcpip_output(struct pbuf *p, struct netif *out_if,
+	BOOL send_direct,
+	ip_addr_t* src, ip_addr_t* dst,
+	u8_t ttl, u8_t tos, u8_t protocol)
 {
 	struct tcpip_msg *msg;
 	__LWIP_EXTENSION* pExt = NULL;
 	__OUTGOING_IP_PACKET* pOutPkt = NULL;
+	struct pbuf* q = p;
 	DWORD dwFlags;
 
 	BUG_ON(NULL == plwipProto);
 	pExt = (__LWIP_EXTENSION*)plwipProto->pProtoExtension;
 	BUG_ON(NULL == pExt);
+
+	/* Check pbuf's type, PBUF_REF/ROM are not supported yet. */
+	while (q)
+	{
+		if ((PBUF_REF == q->type) || (PBUF_ROM == q->type))
+		{
+			return ERR_ARG;
+		}
+		q = q->next;
+	}
 
 	/* Create an incoming IP packet struct to hold the incoming packet. */
 	pOutPkt = (__OUTGOING_IP_PACKET*)_hx_malloc(sizeof(__OUTGOING_IP_PACKET));
@@ -382,6 +424,12 @@ err_t tcpip_output(struct pbuf *p, struct netif *out_if)
 	}
 	pOutPkt->p = p;
 	pOutPkt->out_if = out_if;
+	pOutPkt->send_direct = send_direct;
+	pOutPkt->src_addr = *src;
+	pOutPkt->dst_addr = *dst;
+	pOutPkt->ttl = ttl;
+	pOutPkt->tos = tos;
+	pOutPkt->protocol = protocol;
 	pOutPkt->pNext = NULL;
 
 	/*

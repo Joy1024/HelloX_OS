@@ -578,6 +578,18 @@ static LPVOID SearchVirtualArea(__COMMON_OBJECT* lpThis, LPVOID lpDesiredAddr,
 		range_start = KMEM_USERSTACK_START;
 		range_end = KMEM_USERSTACK_END - 1;
 		break;
+	case VIRTUAL_AREA_ALLOCATE_USERLIB:
+		range_start = KMEM_USERLIB_START;
+		range_end = KMEM_USERLIB_END - 1;
+		break;
+	case VIRTUAL_AREA_ALLOCATE_USERHEAP:
+		range_start = KMEM_USERHEAP_START;
+		range_end = KMEM_USERHEAP_END - 1;
+		break;
+	case VIRTUAL_AREA_ALLOCATE_USERAPP:
+		range_start = KMEM_USERAPP_START;
+		range_end = KMEM_USERAPP_END - 1;
+		break;
 	default:
 		//BUG_ON(TRUE);
 		break;

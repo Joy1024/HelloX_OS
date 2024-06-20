@@ -367,6 +367,9 @@ int  cifdefaultroute (int, u32_t, u32_t);
 /* Get appropriate netmask for address */
 u32_t GetMask (u32_t); 
 
+/* Show ppp session info. */
+void show_ppp_session(int session_id);
+
 #endif /* PPP_SUPPORT */
 
 #endif /* PPP_IMPL_H */

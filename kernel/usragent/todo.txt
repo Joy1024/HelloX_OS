@@ -1,0 +1,25 @@
+20240326:
+1. Implement CreatePEB in front of the entry of user agent. The PED is
+   created and initialized in this routine, start from KMEM_PEB_START
+   address. Define the PEB struct before implement it;
+2. Define a struct used to manage DLL, could get something from PE header
+   and section headers;
+3. Define and implement a queue to hold all loaded DLLs, the first one
+   is used to hold application's PE module;
+4. Implement the dependency of import symbols, linking all DLL modules
+   together. Recursive symbol reference should be supported;
+5. Load DLLs from application's current directory, and from system32
+   dir if not exist;
+6. Show warning message if the depend DLL is not found, terminate current
+   process;
+7. Implement process command under sysdiag, use different level 2 subcommand
+   to control the output;
+8. Upgrade kvalist command under sysdiag, to support output one process's
+   va list;
+9. Implement dummy or agent DLL to run windows console application;
+10. Revise DoReserveAndCommit routine in VMM, to support any kind size's
+   allocation, since current can not allocate larger than 8M;
+11. May re-arrange the virtual memory layout in kernel, to reserve the low
+   end 2G space for application, because some PE exe does not contain
+   relocation entries;
+12. 

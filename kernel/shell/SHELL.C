@@ -57,7 +57,7 @@ extern DWORD MemHandler(__CMD_PARA_OBJ* pCmdParaObj);          //Handles the mem
 extern DWORD HlpHandler(__CMD_PARA_OBJ* pCmdParaObj);
 extern DWORD LoadappHandler(__CMD_PARA_OBJ* pCmdParaObj);
 extern DWORD TelnetHandler(__CMD_PARA_OBJ* lpCmdObj);
-//extern DWORD Ssh2Handler(__CMD_PARA_OBJ* lpCmdObj);
+extern DWORD Ssh2Handler(__CMD_PARA_OBJ* lpCmdObj);
 extern DWORD GUIHandler(__CMD_PARA_OBJ* pCmdParaObj);          //Handler for GUI command,resides in
 extern DWORD BatHandler(__CMD_PARA_OBJ* pCmdParaObj);
 //extern DWORD FileWriteTest(__CMD_PARA_OBJ* pCmdParaObj); 
@@ -466,10 +466,8 @@ DWORD FileModifyTest(__CMD_PARA_OBJ* pCmdParaObj)
 		return S_OK;
 	}
 
-	//�ƶ��ļ�
 	SetFilePointer(hFileObj,&dwFilePos,&dwFilePos,FILE_FROM_CURRENT);
 
-	//�ض�
 	SetEndOfFile(hFileObj);
 
 	CloseFile(hFileObj);
@@ -552,52 +550,51 @@ DWORD Poweroff(__CMD_PARA_OBJ* pCmdParaObj)
 	return SHELL_CMD_PARSER_SUCCESS;
 }
 
-//Handler for 'runtime' command.
+/* Handler for runtime command. */
 DWORD RunTimeHandler(__CMD_PARA_OBJ* pCmdParaObj)
 {
-	CHAR  Buffer[190] = {0};
-	DWORD week = 0,day = 0,hour = 0,minute = 0,second = 0;
-	DWORD* Array[5] = {0};
+	unsigned long weeks = 0, days = 0, hours = 0;
+	unsigned long minutes = 0, seconds = 0;
+	__u64 system_ticks = 0, total_seconds = 0;
 
-	second = System.GetSysTick(NULL);  //Get system tick counter.
-	//Convert to second.
-	second *= SYSTEM_TIME_SLICE;
-	second /= 1000;
+	/* 
+	 * Retrieve the system tick counter and convert 
+	 * into seconds, use 64 bits integer to avoid overflow. 
+	 */
+	system_ticks = System.GetSysTick(NULL);
+	total_seconds = system_ticks;
+	total_seconds *= SYSTEM_TIME_SLICE;
+	total_seconds /= 1000;
+	seconds = (unsigned long)total_seconds;
 
-	if(second >= 60)  //Use minute.
+	/* Carry to minutes. */
+	if(seconds >= 60)
 	{
-		minute = second / 60;
-		second = second % 60;
+		minutes = seconds / 60;
+		seconds = seconds % 60;
 	}
-	if(minute >= 60) //use hour.
+	/* Carry to hours. */
+	if(minutes >= 60)
 	{
-		hour   = minute / 60;
-		minute = minute % 60;
+		hours   = minutes / 60;
+		minutes = minutes % 60;
 	}
-	if(hour >= 24) //Use day.
+	/* Carry to day. */
+	if(hours >= 24)
 	{
-		day  = hour / 24;
-		hour = hour % 24;
+		days  = hours / 24;
+		hours = hours % 24;
 	}
-	if(day >= 7) //Use week.
+	/* Carry to weeks. */
+	if(days >= 7)
 	{
-		week = day / 7;
-		day  = day % 7;
+		weeks = days / 7;
+		days  = days % 7;
 	}
 
-	Array[0] = &week;
-	Array[1] = &day;
-	Array[2] = &hour;
-	Array[3] = &minute;
-	Array[4] = &second;	
-	FormString(Buffer,"System has running %d week(s), %d day(s), %d hour(s), %d minute(s), %d second(s).",(LPVOID*)Array);
-
-	//Show out the result.
-	/*sprintf(Buffer,"System has running %d week(s), %d day(s), %d hour(s), %d minute(s), %d second(s).",
-		week,day,hour,minute,second);*/
-	//sprintf(Buffer,"System has running %d,%d",(INT)week,(INT)day);//(INT)hour,(INT)minute,(INT)second
-	//PrintLine(Buffer);
-	CD_PrintString(Buffer,TRUE);
+	_hx_printf("System has running %d week(s), %d day(s), %d hour(s), %d minute(s), %d second(s).\r\n",
+		weeks, days, hours, minutes, seconds);
+	_hx_printf("System tick: %u\r\n", (unsigned long)system_ticks);
 
 	return SHELL_CMD_PARSER_SUCCESS;
 }

@@ -31,13 +31,32 @@ typedef struct tag__INCOME_IP_PACKET{
 }__INCOME_IP_PACKET;
 
 /*
-* Structure to hold one oug going IP packet,which is posted to TCP/IP main
-* thread to process.All packets will be linked into one link list.
+* Structure to hold one out going IP packet,
+* which is posted to TCP/IP main thread to process.
+* All packets will be linked into one link list.
 */
 typedef struct tag__OUTGOING_IP_PACKET {
 	struct pbuf* p;
 	struct netif* out_if;
 	struct tag__OUTGOING_IP_PACKET* pNext;
+	
+	/* 
+	 * When set, the IP header is included in p
+	 * and just send to out_if directly. Otherwise
+	 * the ip header should be constructed using
+	 * the following fields.
+	 */
+	BOOL send_direct;
+
+	/* 
+	 * IP header fields of the packet to 
+	 * be sent out, when send_direct is set.
+	 */
+	ip_addr_t src_addr;
+	ip_addr_t dst_addr;
+	u8_t protocol;
+	u8_t ttl;
+	u8_t tos;
 }__OUTGOING_IP_PACKET;
 
 /* Extension object of lwIP protocol stack. */

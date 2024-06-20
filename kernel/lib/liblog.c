@@ -19,9 +19,6 @@
 
 #include "../kthread/syslog.h"
 
-/* Only available when enabled explicitly. */
-#if defined(__CFG_APP_SYSLOG)
-
 /* Global logging routine, invoked by other modules directly. */
 int __issue_log(const char* fmt, ...)
 {
@@ -51,8 +48,13 @@ int __issue_log(const char* fmt, ...)
 	n = _hx_vsprintf(buff, fmt, args);
 	va_end(args);
 
-	/* Drop it to log manager. */
+#if defined(__CFG_APP_SYSLOG)
+	/* Drop it to log manager, if enabled. */
 	LogManager.WriteLog(buff, strlen(buff));
+#else
+	/* Just show out. */
+	_hx_printf(buff);
+#endif
 
 __TERMINAL:
 	if (buff)
@@ -61,5 +63,3 @@ __TERMINAL:
 	}
 	return ret;
 }
-
-#endif //__CFG_APP_SYSLOG

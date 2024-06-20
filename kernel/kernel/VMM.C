@@ -964,6 +964,18 @@ static BOOL ValidateAllocFlags(unsigned long ulAllocFlags)
 	{
 		return TRUE;
 	}
+	if (VIRTUAL_AREA_ALLOCATE_USERLIB == (ulAllocFlags & VIRTUAL_AREA_ALLOCATE_SPACE_MASK))
+	{
+		return TRUE;
+	}
+	if (VIRTUAL_AREA_ALLOCATE_USERHEAP == (ulAllocFlags & VIRTUAL_AREA_ALLOCATE_SPACE_MASK))
+	{
+		return TRUE;
+	}
+	if (VIRTUAL_AREA_ALLOCATE_USERAPP == (ulAllocFlags & VIRTUAL_AREA_ALLOCATE_SPACE_MASK))
+	{
+		return TRUE;
+	}
 	return FALSE;
 }
 

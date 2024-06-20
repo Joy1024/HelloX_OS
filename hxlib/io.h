@@ -3,6 +3,10 @@
 #define	__IO_H__
 
 #include "__hxcomm.h"
+#include "sys/types.h"
+
+#define S_OK                0x00000000
+#define S_FALSE             0x00000001
 
 /*
  * Attributes of files as returned by _findfirst et al.
@@ -32,7 +36,7 @@
 #define _O_U16TEXT      0x20000 /* file mode is UTF16 no BOM (translated) */
 #define _O_U8TEXT       0x40000 /* file mode is UTF8  no BOM (translated) */
 
-/* macro to translate the C 2.0 name used to force binary mode for files */
+ /* macro to translate the C 2.0 name used to force binary mode for files */
 #define _O_RAW  _O_BINARY
 
 #if     !__STDC__ || defined(_POSIX_)
@@ -71,12 +75,12 @@ typedef	unsigned long _fsize_t;
 extern "C" {
 #endif
 
- int     chdir (const char*);
- char*   getcwd (char*, int);
- int     mkdir (const char*);
- char*   mktemp (char*);
- int     rmdir (const char*);
- int     chmod (const char*, int);
+	int     chdir(const char*);
+	char*   getcwd(char*, int);
+	int     mkdir(const char*);
+	char*   mktemp(char*);
+	int     rmdir(const char*);
+	int     chmod(const char*, int);
 
 #ifdef	__cplusplus
 }
@@ -86,11 +90,11 @@ extern "C" {
  * it the same as FOPEN_MAX. */
 #define	HANDLE_MAX	FOPEN_MAX
 
-/* Some defines for _access nAccessMode (MS doesn't define them, but
- * it doesn't seem to hurt to add them). */
+ /* Some defines for _access nAccessMode (MS doesn't define them, but
+  * it doesn't seem to hurt to add them). */
 #define	F_OK	0	/* Check for file existence */
-/* Well maybe it does hurt.  On newer versions of MSVCRT, an access mode
-   of 1 causes invalid parameter error. */   
+  /* Well maybe it does hurt.  On newer versions of MSVCRT, an access mode
+	 of 1 causes invalid parameter error. */
 #define	X_OK	1	/* MS access() doesn't check for execute permission. */
 #define	W_OK	2	/* Check for write permission */
 #define	R_OK	4	/* Check for read permission */
@@ -100,40 +104,43 @@ extern "C" {
 extern "C" {
 #endif
 
- int  	 remove (const char*);
- int  	 rename (const char*, const char*);
- int     access (const char*, int);
- int     chsize (int, long );
- int     close (int);
- int     creat (const char*, int);
- int     dup (int);
- int     dup2 (int, int);
- int     eof (int);
- long    filelength (int);
- int     isatty (int);
- long    lseek (int, long, int);
- int     open (const char*, int, ...);
- int     read (int, void*, unsigned int);
- int     setmode (int, int);
- int     sopen (const char*, int, int, ...);
- long    tell (int);
- int     umask (int);
- int     unlink (const char*);
- int     write (int, const void*, unsigned int);
+	int  	 remove(const char*);
+	int  	 rename(const char*, const char*);
+	int     access(const char*, int);
+	int     chsize(int, long);
+	int     close(int);
+	int     creat(const char*, int);
+	int     dup(int);
+	int     dup2(int, int);
+	int     eof(int);
+	long    filelength(int);
+	int     isatty(int);
+	long    lseek(int, long, int);
+	int     open(const char*, int, ...);
+	int     read(int, void*, unsigned int);
+	int     setmode(int, int);
+	int     sopen(const char*, int, int, ...);
+	long    tell(int);
+	int     umask(int);
+	int     unlink(const char*);
+	int     write(int, const void*, unsigned int);
 
- typedef void FILE;
+	typedef void FILE;
 
- FILE*   fopen(const char *, const char *);
- int     fclose(FILE *); 
- size_t  fwrite(const void *, size_t, size_t, FILE *);
- size_t  fread(void *, size_t, size_t, FILE*); 
- int     fseek(FILE *, long, int);
- long    ftell(FILE *);
+	FILE*   fopen(const char *, const char *);
+	int     fclose(FILE *);
+	size_t  fwrite(const void *, size_t, size_t, FILE *);
+	size_t  fread(void *, size_t, size_t, FILE*);
+	int     fseek(FILE *, long, int);
+	long    ftell(FILE *);
 
- //stdin,stdout,stderr definition.
+	//stdin,stdout,stderr definition.
 #define stdin  NULL
 #define stdout NULL
 #define stderr NULL
+
+/* Root path of hellox. */
+#define FILE_ROOT_PATH "C:\\"
 
 #ifdef	__cplusplus
 }

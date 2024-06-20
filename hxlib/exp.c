@@ -24,7 +24,7 @@
  *     @(#)e_exp.c 1.6 04/04/22
  */
 
-#include "kapi.h"
+#include "hellox.h"
 #include "math.h"
 
 /* exp(x)

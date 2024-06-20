@@ -25,6 +25,7 @@
 #include "hx_eth.h"
 #include "ethmgr.h"
 #include "proto.h"
+#include "routmgr/rtmgr.h"
 #include "lwip/opt.h"
 #include "lwip/def.h"
 #include "lwip/mem.h"
@@ -225,7 +226,33 @@ static err_t __genif_ll_output(struct netif* netif, struct pbuf* p)
 	BUG_ON(NULL == pGenif);
 	
 	/* Delegate the tx to genif's output routine. */
-	return pGenif->genif_output(pGenif, p);
+	return pGenif->genif_l2_output(pGenif, p);
+}
+
+/*
+ * General output routine for VTI interface associated
+ * netif.
+ * netif->output will be invoked when a packet is sent
+ * from the VTI interface, and the output routine should
+ * delivery the packet to genif's genif_l3_output routine,
+ * where the packet will be processed farther.
+ * This mechanism is used to fit lwIP and HelloX's genif
+ * architecture.
+ */
+static err_t netif_vti_output(struct netif *netif, struct pbuf *q, ip_addr_t *ipaddr)
+{
+	__GENERIC_NETIF* pGenif = NULL;
+	__COMMON_NETWORK_ADDRESS comm_addr;
+
+	BUG_ON((NULL == netif) || (NULL == q));
+	pGenif = netif->pGenif;
+	BUG_ON(NULL == pGenif);
+
+	/* Use common address instead of IP address. */
+	comm_addr.AddressType = NETWORK_ADDRESS_TYPE_IPV4;
+	comm_addr.Address.ipv4_addr = ipaddr->addr;
+	/* Invoke the l3 output routine. */
+	return pGenif->genif_l3_output(pGenif, q, &comm_addr);
 }
 
 /* Local helper to init a netif when AddGenif is invoked. */
@@ -240,22 +267,40 @@ static err_t __genif_netif_init(struct netif* pIf)
 	NETIF_INIT_SNMP(netif, snmp_ifType_ethernet_csmacd, 10000000);
 
 	/* 
-	 * We directly use etharp_output() here to save a function call.
-	 * You can instead declare your own function an call etharp_output()
-	 * from it if you have to do some checks before sending (e.g. if link
-	 * is available...) 
+	 * Set different output routine according the interface's
+	 * link type.
 	 */
-	pIf->output = etharp_output;
-	pIf->hwaddr_len = ETH_MAC_LEN;
-	pIf->linkoutput = __genif_ll_output;
+	switch (pGenif->link_type)
+	{
+	case lt_tunnel:
+		pIf->output = netif_vti_output;
+		pIf->hwaddr_len = 0;
+		pIf->linkoutput = NULL;
+		/* device capabilities */
+		/* don't set NETIF_FLAG_ETHARP if this device is not an ethernet one */
+		pIf->flags = NETIF_FLAG_LINK_UP;
+		break;
+	default:
+		pIf->output = etharp_output;
+		pIf->hwaddr_len = ETH_MAC_LEN;
+		pIf->linkoutput = __genif_ll_output;
+		/* device capabilities */
+		/* don't set NETIF_FLAG_ETHARP if this device is not an ethernet one */
+		pIf->flags = NETIF_FLAG_BROADCAST | NETIF_FLAG_ETHARP | NETIF_FLAG_LINK_UP;
+		/* Enable IGMP or multicasting in all ethernet interface(s). */
+		pIf->flags |= NETIF_FLAG_IGMP;
+		break;
+	}
+
+	/* Map genif's nat flag to netif's. */
+	if (pGenif->genif_flags & GENIF_FLAG_NAT)
+	{
+		pIf->flags |= NETIF_FLAG_NAT;
+		//netif_set_default(pIf);
+	}
 
 	/* maximum transfer unit */
 	pIf->mtu = pGenif->genif_mtu;
-	/* device capabilities */
-	/* don't set NETIF_FLAG_ETHARP if this device is not an ethernet one */
-	pIf->flags = NETIF_FLAG_BROADCAST | NETIF_FLAG_ETHARP | NETIF_FLAG_LINK_UP;
-	/* Enable IGMP or multicasting in all ethernet interface(s). */
-	pIf->flags |= NETIF_FLAG_IGMP;
 	/* Set the MAC address of this interface. */
 	memcpy(pIf->hwaddr, pGenif->genif_ha, ETH_MAC_LEN);
 
@@ -273,10 +318,11 @@ LPVOID lwipAddGenif(__GENERIC_NETIF* pGenif)
 	ip_addr_t ipAddr, ipMask, ipGw;
 
 	BUG_ON(NULL == pGenif);
-	/* Only ethernet/VLAN/ppp/loop are supported. */
+	/* Only ethernet/VLAN/ppp/VTI/loop are supported. */
 	if ((pGenif->link_type != lt_ethernet) && 
 		(pGenif->link_type != lt_vlanif) && 
 		(pGenif->link_type != lt_pppoe) &&
+		(pGenif->link_type != lt_tunnel) &&
 		(pGenif->link_type != lt_loopback))
 	{
 		goto __TERMINAL;
@@ -290,6 +336,7 @@ LPVOID lwipAddGenif(__GENERIC_NETIF* pGenif)
 	}
 	memset(netif, 0, sizeof(struct netif));
 	netif->state = pGenif;
+	netif->pGenif = pGenif;
 
 	/*
 	 * Initialize name of layer 3 interface.We use the first byte and
@@ -313,22 +360,28 @@ LPVOID lwipAddGenif(__GENERIC_NETIF* pGenif)
 	netif->name[0] = pGenif->genif_name[0];
 	netif->name[1] = pGenif->genif_name[name_idx];
 
+#if 0
 	/* Use first IPv4 configuration config the netif. */
 	ipAddr = pGenif->ip_addr[0];
 	ipMask = pGenif->ip_mask[0];
 	ipGw = pGenif->ip_gw[0];
+#endif 
+	
+	/* Use NULL ip address to config netif. */
+	ipAddr.addr = IPADDR_ANY;
+	ipMask.addr = IPADDR_ANY;
+	ipGw.addr = IPADDR_ANY;
 
-	/* Add the netif to lwIP. */
-	netif_add(netif, &ipAddr, &ipMask, &ipGw, pGenif, __genif_netif_init, &tcpip_input);
-	/* Enable dhcp client if no IP address specified. */
-	if (0 == ipAddr.addr)
+	/* Add the netif to lwIP, use general IP input as incoming process. */
+	netif_add(netif, &ipAddr, &ipMask, &ipGw, pGenif, __genif_netif_init, &general_ip_input);
+	
+	/* 
+	 * Enable dhcp client if no IP address specified, and
+	 * the interface type is ethernet.
+	 */
+	if ((IPADDR_ANY == ipAddr.addr) && (lt_ethernet == pGenif->link_type))
 	{
 		dhcp_start(netif);
-	}
-	/* Set as default interface if it's the first one. */
-	if (0 == pGenif->if_index)
-	{
-		netif_set_default(netif);
 	}
 
 __TERMINAL:
@@ -372,13 +425,42 @@ BOOL lwipAddGenifAddress(__GENERIC_NETIF* pGenif,
 	mask.addr = comm_addr[1].Address.ipv4_addr;
 	gw.addr = comm_addr[2].Address.ipv4_addr;
 
-	/* stop dhcp client on the netif. */
-	dhcp_stop(pif);
+	/* Remove the directly route entry if exist. */
+	if ((pif->ip_addr.addr != IPADDR_ANY) && (pif->netmask.addr != IPADDR_ANY))
+	{
+		RoutingManager.del_iproute(&pif->ip_addr, &pif->netmask);
+	}
 
 	/* Config the IP parameters into interface. */
 	netif_set_down(pif);
 	netif_set_addr(pif, &addr, &mask, &gw);
 	netif_set_up(pif);
+
+	/* 
+	 * Add one route entry into routing table, 
+	 * if the address is valid. 
+	 */
+	if ((addr.addr != IPADDR_ANY) && (mask.addr != IPADDR_ANY))
+	{
+		addr.addr &= mask.addr;
+		RoutingManager.add_iproute(&addr, &mask, 
+			ROUTE_METRIC_DIRECTLY, 
+			NULL, IP_ROUTE_TYPE_DIRECT,
+			pGenif->genif_name);
+	}
+
+	/* 
+	 * Set as default interface if it's the first 
+	 * one with valid IP address. 
+	 */
+	if ((addr.addr != IPADDR_ANY) && (mask.addr != IPADDR_ANY))
+	{
+		if (0 == pGenif->if_index)
+		{
+			netif_set_default(pif);
+		}
+	}
+
 	return TRUE;
 }
 
@@ -469,6 +551,7 @@ LPVOID lwipAddEthernetInterface(__ETHERNET_INTERFACE* pEthInt)
 	}
 	memset(pIf, 0, sizeof(struct netif));
 	pIf->state = pEthInt;     //Point to the layer 2 interface.
+	pIf->pGenif = NULL;
 
 	/* 
 	 * Initialize name of layer 3 interface.We use the first byte and
@@ -593,7 +676,17 @@ BOOL lwipSetIPAddress(LPVOID pIfState, __ETH_IP_CONFIG* pConfig)
 static BOOL lwipShutdownInterface(LPVOID pL3Interface)
 {
 	struct netif* pif = (struct netif*)pL3Interface;
+	__GENERIC_NETIF* pGenif = NULL;
+
 	BUG_ON(NULL == pif);
+	pGenif = pif->pGenif;
+	BUG_ON(NULL == pGenif);
+	/* Remove the corresponding directly route. */
+	if ((pif->ip_addr.addr != IPADDR_ANY) && (pif->netmask.addr != IPADDR_ANY))
+	{
+		RoutingManager.del_iproute(&pif->ip_addr, &pif->netmask);
+	}
+	/* Bring the layer3 if to down. */
 	netif_set_down(pif);
 	return TRUE;
 }
@@ -602,7 +695,23 @@ static BOOL lwipShutdownInterface(LPVOID pL3Interface)
 static BOOL lwipUnshutdownInterface(LPVOID pL3Interface)
 {
 	struct netif* pif = (struct netif*)pL3Interface;
+	__GENERIC_NETIF* pGenif = NULL;
+
 	BUG_ON(NULL == pif);
+	pGenif = pif->pGenif;
+	BUG_ON(NULL == pGenif);
+	/* Add the corresponding directly route. */
+	if ((IPADDR_ANY != pif->ip_addr.addr) && (IPADDR_ANY != pif->netmask.addr))
+	{
+		RoutingManager.add_iproute(
+			&pif->ip_addr,
+			&pif->netmask,
+			ROUTE_METRIC_DIRECTLY,
+			NULL,
+			IP_ROUTE_TYPE_DIRECT,
+			pGenif->genif_name);
+	}
+
 	netif_set_up(pif);
 	return TRUE;
 }

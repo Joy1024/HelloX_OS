@@ -28,10 +28,10 @@
 //
 //************************************************************************
 
-#define OS_VERSION   "    HelloX V1.88"
-#define HELLOX_VERSION_INFO "HelloX [Version 1.880(Beta),initiated in 2020/11/13,by Garry.Xin]"
+#define OS_VERSION   "    HelloX V1.89"
+#define HELLOX_VERSION_INFO "HelloX [Version 1.900(Beta),initiated in 2023/09/16,by Garry.Xin]"
 #define HELLOX_SLOGAN_INFO  "HelloX OS,through which you can talk to everything."
-#define HELLOX_SPECIAL_INFO "Nickname:babygirl,to remark the birth of Sophia,my little girl,in 2016/04/19."
+//#define HELLOX_SPECIAL_INFO "Nickname:babygirl,to remark the birth of Sophia,my little girl,in 2016/04/19."
 
 //************************************************************************
 //
@@ -105,6 +105,13 @@
  */
 #define DEFAULT_USER_STACK_SIZE 8192
 
+ /* 
+  * Reboot system when bug encountered,
+  * or system level exception raise.
+  * Change to 0 will not reboot system.
+  */
+#define BUG_ON_REBOOT           1
+
 //************************************************************************
 //
 //  System level pre-defined switches.
@@ -169,7 +176,25 @@
 //
 //************************************************************************
 
-//Include IDE driver in OS.
+/*
+ * The IDE driver in current version of hellox is
+ * not supported, but using BIOS I/O instead.
+ * If enable this flag, then hellox will install
+ * a partition and it's file system, using BIOS
+ * I/O to access hardware.
+ * So if other storage drivers are also included
+ * in hellox, such as AHCI interface driver or USB
+ * storage, they may conflict with BIOS IO, since
+ * since BIOS I/O also using the hardware to access
+ * the storage.
+ * Please be careful when enable this flag, make
+ * sure there is no conflict when enabled.
+ * A feasible scenario is, the USB driver has
+ * issue currently, it can not work in some
+ * USB controller chips, so USB storage can not
+ * be installed. We can enable this flag to use
+ * BIOS USB I/O to access USB storages.
+ */
 //#define __CFG_DRV_IDE
 
 //Include AHCI driver in OS.
@@ -268,6 +293,9 @@
 //Include ENC28J60 ethernet driver.
 //#define __CFG_NET_ENC28J60
 
+//Include IPSec functions in system.
+#define __CFG_NET_IPSEC
+
 //************************************************************************
 //
 //  Pre-defined switches to control what kinds of application components
@@ -279,7 +307,7 @@
 //#define __CFG_APP_JVM
 
 //Enable or disable SSH support in system.
-//#define __CFG_APP_SSH
+#define __CFG_APP_SSH
 
 //Enable or disable telnet support in system.
 //#define __CFG_APP_TELNET

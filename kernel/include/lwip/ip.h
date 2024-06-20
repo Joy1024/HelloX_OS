@@ -54,6 +54,7 @@ extern "C" {
 #define IP_PROTO_UDP     17
 #define IP_PROTO_UDPLITE 136
 #define IP_PROTO_TCP     6
+#define IP_PROTO_GRE     47
 
 /* This is passed as the destination address to ip_output_if (not
    to ip_output), meaning that an IP header already is constructed

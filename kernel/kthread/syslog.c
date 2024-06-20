@@ -80,6 +80,26 @@ static BOOL __process_log_list()
 }
 
 /*
+ * Build log file's default name, using current date.
+ * The current rule of logfile's name is just the date
+ * when system boot.
+ */
+static void __build_logfile_name(char* file_name)
+{
+	char date_time[16];
+	char __name[MAX_FILE_NAME_LEN];
+	char* name_start = NULL;
+
+	BUG_ON(NULL == file_name);
+	/* Get local date and time. */
+	__GetTime(&date_time[0]);
+	name_start = strcpy(__name, "c:\\syslog\\");
+	name_start += strlen(__name);
+	sprintf(name_start, "%02d%02d%02d.log", date_time[0], date_time[1], date_time[2]);
+	strcpy(file_name, __name);
+}
+
+/*
  * Background thread of logging service. The thread is 
  * created in process of system initialization, it's response is
  * write log into log file according request.
@@ -89,18 +109,21 @@ static unsigned long __log_background_thread(LPVOID pData)
 	HANDLE log_file = NULL;
 	HANDLE wait_event = NULL;
 	uint32_t file_sz = 0;
+	char log_file_name[MAX_FILE_NAME_LEN];
 
 	/* Event object must be created. */
 	BUG_ON(NULL == LogManager.wake_event);
 
+	/* Build the default logfile's name. */
+	__build_logfile_name(log_file_name);
 	/* Open the logging file. */
-	log_file = CreateFile(LOG_FILE_PATHNAME, 
+	log_file = CreateFile(log_file_name, //LOG_FILE_PATHNAME, 
 		FILE_ACCESS_READWRITE | FILE_OPEN_ALWAYS, 0, NULL);
 	if (NULL == log_file)
 	{
 		/* Could not open log file, exit thread. */
 		_hx_printf("[%s]could not open logging file[%s]\r\n", __func__,
-			LOG_FILE_PATHNAME);
+			log_file_name);
 		goto __TERMINAL;
 	}
 	/* Set the file pointer to file's end. */

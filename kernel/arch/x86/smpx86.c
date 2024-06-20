@@ -468,4 +468,58 @@ BOOL Stop_AP()
 	return TRUE;
 }
 
+/*
+ * Arch specific read write spin lock's implementation code.
+ * Acquire a read lock.
+ */
+void __raw_rw_slock_rlock(__RW_SPIN_LOCK* rw_slock)
+{
+	unsigned long new_val, old_val;
+	for (;;)
+	{
+		old_val = rw_slock->rw_slock;
+		new_val = old_val + 1;
+		if (__compare_and_swap(&rw_slock->rw_slock, new_val, old_val) == old_val)
+		{
+			/* Locked. */
+			return;
+		}
+	}
+}
+
+/* Release a read lock. */
+void __raw_rw_slock_runlock(__RW_SPIN_LOCK* rw_slock)
+{
+	__ATOMIC_DECREASE((__atomic_t*)&rw_slock->rw_slock);
+}
+
+/* Acquire a write lock. */
+void __raw_rw_slock_wlock(__RW_SPIN_LOCK* rw_slock)
+{
+	unsigned long old_val, new_val;
+
+	for (;;)
+	{
+		old_val = (rw_slock->rw_slock & 0x7FFFFFFF);
+		new_val = (old_val | 0x80000000);
+		if (__compare_and_swap(&rw_slock->rw_slock, new_val, old_val) == old_val)
+		{
+			/* Write locked, busying wait for all reader(s) over. */
+			while (rw_slock->rw_slock & 0x7FFFFFFF);
+			return;
+		}
+	}
+}
+
+/* Release a write lock. */
+void __raw_rw_slock_wunlock(__RW_SPIN_LOCK* rw_slock)
+{
+	/* 
+	 * Just set lock to 0, since there must no 
+	 * read pending. 
+	 */
+	BUG_ON(rw_slock->rw_slock != 0x80000000);
+	rw_slock->rw_slock = 0;
+}
+
 #endif //__I386__ && __CFG_SYS_SMP

@@ -1,0 +1,8 @@
+1. prefcg.h file defines several fixed initialization variables, which is used to init network
+   sub system when startup;
+2. For pppoe, a dedicated routine named GetSavedConfig is invoked at startup to retrieve configurations
+   from config file or system pre-defined;
+3. pppoe will create an instance according saved configuration, and start it;
+4. NAT is enabled, and default route is installed, after pppoe session established, and status callback
+   routine is invoked to achieve these objectives;
+5. 

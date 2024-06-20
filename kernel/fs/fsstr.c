@@ -21,7 +21,7 @@
 //A helper routine to check the validity of a file name.
 //For a regular file name,the first three characters must be file system identifier,a colon,
 //and a slash character.
-BOOL NameIsValid(CHAR* pFullName)
+BOOL NameIsValid(const CHAR* pFullName)
 {
 	if(NULL == pFullName)
 	{
@@ -142,52 +142,53 @@ BOOL GetSubDirectory(CHAR* pFullName,DWORD dwLevel,CHAR* pSubDir)
 //the pDir[0] will contain the file system identifier to indicate this.
 //If the full name only contain a directory,i.e,the last character of
 //the full name is a slash character,then the pFileName[0] will be set to 0.
-BOOL GetPathName(CHAR* pFullName,CHAR* pDir,CHAR* pFileName)
+BOOL GetPathName(const CHAR* pFullName, CHAR* pDir, CHAR* pFileName)
 {
-	BYTE        DirName[MAX_FILE_NAME_LEN];
-	BYTE        FileName[MAX_FILE_NAME_LEN];
-	BYTE        tmp;
-	int         i = 0;
-	int         j = 0;
+	CHAR DirName[MAX_FILE_NAME_LEN];
+	CHAR FileName[MAX_FILE_NAME_LEN];
+	CHAR tmp;
+	int i = 0, j = 0;
 
-	if((NULL == pFullName) || (NULL == pDir) || (NULL == pFileName))  //Invalid parameters.
+	if ((NULL == pFullName) || (NULL == pDir) || (NULL == pFileName))
 	{
 		return FALSE;
 	}
-	if(!NameIsValid(pFullName))  //Not a valid file name.
+	if (!NameIsValid(pFullName))
 	{
 		return FALSE;
 	}
+
 	//strcpy((CHAR*)&DirName[0],(CHAR*)pFullName);
-	StrCpy((CHAR*)pFullName,(CHAR*)&DirName);
+	StrCpy((CHAR*)pFullName, (CHAR*)&DirName);
 	i = StrLen((CHAR*)pFullName);
 	i -= 1;
-	if(pFullName[i] == '\\') //The last character is a splitter,means only dir name present.
+	if (pFullName[i] == '\\')
 	{
-		//DirName[i] = 0;      //Eliminate the slash.
-		//strcpy((CHAR*)pDir,(CHAR*)&DirName[0]);
-		StrCpy((CHAR*)&DirName[0],(CHAR*)pDir);
+		/* Only directory name, no file name. */
+		StrCpy((CHAR*)&DirName[0], (CHAR*)pDir);
 		pFileName[0] = 0;
 		return TRUE;
 	}
+
 	j = 0;
-	while(pFullName[i] != '\\')  //Get the file name part.
+	while (pFullName[i] != '\\')
 	{
-		FileName[j ++] = pFullName[i --];
+		/* Get the name part. */
+		FileName[j++] = pFullName[i--];
 	}
-	DirName[i + 1]  = 0;  //Keep the slash.
+	DirName[i + 1] = 0;
 	FileName[j] = 0;
-	//Now reverse the file name string.
-	for(i = 0;i < (j / 2);i ++)
+
+	/* Rverse the file name string. */
+	for (i = 0; i < (j / 2); i++)
 	{
 		tmp = FileName[i];
 		FileName[i] = FileName[j - i - 1];
 		FileName[j - i - 1] = tmp;
 	}
-	//strcpy((CHAR*)pDir,(CHAR*)&DirName[0]);
-	StrCpy((CHAR*)&DirName[0],(CHAR*)pDir);
-	//strcpy((CHAR*)pFileName,(CHAR*)&FileName[0]);
-	StrCpy((CHAR*)&FileName[0],(CHAR*)pFileName);
+
+	StrCpy((CHAR*)&DirName[0], (CHAR*)pDir);
+	StrCpy((CHAR*)&FileName[0], (CHAR*)pFileName);
 	return TRUE;
 }
 

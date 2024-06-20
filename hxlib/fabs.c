@@ -25,7 +25,7 @@
  *     @(#)s_fabs.c 1.3 95/01/18
  */
 
-#include "kapi.h"
+#include "hellox.h"
 #include "math.h"
 
 /* fabs(x) returns the absolute value of x.

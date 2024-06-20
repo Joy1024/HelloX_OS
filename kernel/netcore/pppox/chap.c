@@ -78,7 +78,7 @@
 #include "magic.h"
 #include "randm.h"
 #include "auth.h"
-#include "md5.h"
+#include "chapmd5.h"
 #include "chap.h"
 #include "chpms.h"
 
@@ -489,11 +489,11 @@ ChapReceiveChallenge(chap_state *cstate, u_char *inp, u_char id, int len)
   switch (cstate->resp_type) { 
 
   case CHAP_DIGEST_MD5:
-    MD5Init(&mdContext);
-    MD5Update(&mdContext, &cstate->resp_id, 1);
-    MD5Update(&mdContext, (u_char*)secret, secret_len);
-    MD5Update(&mdContext, rchallenge, rchallenge_len);
-    MD5Final(hash, &mdContext);
+    _chapMD5Init(&mdContext);
+    _chapMD5Update(&mdContext, &cstate->resp_id, 1);
+    _chapMD5Update(&mdContext, (u_char*)secret, secret_len);
+    _chapMD5Update(&mdContext, rchallenge, rchallenge_len);
+    _chapMD5Final(hash, &mdContext);
     BCOPY(hash, cstate->response, MD5_SIGNATURE_SIZE);
     cstate->resp_length = MD5_SIGNATURE_SIZE;
     break;
@@ -597,11 +597,11 @@ ChapReceiveResponse(chap_state *cstate, u_char *inp, int id, int len)
         if (remmd_len != MD5_SIGNATURE_SIZE) {
           break;      /* it's not even the right length */
         }
-        MD5Init(&mdContext);
-        MD5Update(&mdContext, &cstate->chal_id, 1);
-        MD5Update(&mdContext, (u_char*)secret, secret_len);
-        MD5Update(&mdContext, cstate->challenge, cstate->chal_len);
-        MD5Final(hash, &mdContext); 
+        _chapMD5Init(&mdContext);
+        _chapMD5Update(&mdContext, &cstate->chal_id, 1);
+        _chapMD5Update(&mdContext, (u_char*)secret, secret_len);
+        _chapMD5Update(&mdContext, cstate->challenge, cstate->chal_len);
+        _chapMD5Final(hash, &mdContext); 
         
         /* compare local and remote MDs and send the appropriate status */
         if (memcmp (hash, remmd, MD5_SIGNATURE_SIZE) == 0) {

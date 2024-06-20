@@ -16,7 +16,7 @@
 //    Lines number              :
 //***********************************************************************/
 
-#include "kapi.h"
+#include "hellox.h"
 #include "sched.h"
 
 //Yield the CPU to other processes or threads.

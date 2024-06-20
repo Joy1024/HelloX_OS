@@ -25,7 +25,7 @@
  *     @(#)e_log.c 1.3 95/01/18
  */
 
-#include "kapi.h"
+#include "hellox.h"
 #include "math.h"
 
 /* log(x)

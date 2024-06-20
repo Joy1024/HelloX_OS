@@ -233,3 +233,29 @@ TFTP server optimization-20210907 all done:
 3. Test it under physical pc, test the quit function to make sure the application
    is re-enterable;
 4. Trouble the issue that thread is not killed after exit, then lead memory leaking;
+
+20231006:
+1. New defined NET_PRECONFIG_ENABLE_PPPOE macro in precfg.h, set to 0 will disable
+   pppoe session after reboot, used to debug the pppoe dialing issue;
+   --replaced by pppoe configure file(pppoe.cfg)
+2. PPPoE server can send more than 1 PADO to client;
+3. The last time captured the following reminds information:
+		pppoe session [hellox] started.
+		pppoe_dispatch_disc_pkt: devname = g01
+		pppoe_dispatch_disc_pkt: devname = g01
+		g01: host unique tag found, but it belongs to a connection in state 3
+		pppoe: received PADO but could not find request for it
+4. TS pppoe issue: Disable pppoe in start, begin capturing packet on the interface, and manually
+   start pppoe session, to see the cause of the issue;
+5. Implement network configuration mechanism, use a dedicated source file(cfgload.c)
+   to load network's configuration and parse it, implement 2 routines:
+   -- LoadNetworkConfig, invoked in netCore thread's begining; --OK
+   -- GetGenifConfig, invoked when a new genif is registered; --OK
+
+20231022:
+1. vti delete functions implemented and tested, memory leaking exists, maybe caused
+   by the abense of protocol unbind operation, should add it;
+2. Should thoroughly test the vti delete function to make sure it works fine;
+3. Implement the configuration loading mechanism of ht2 tunnel function, load config
+   from file and establish tunnel automatically;
+4. Implement the reboot mechanism when bug or exception; -- OK

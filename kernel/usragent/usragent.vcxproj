@@ -79,6 +79,7 @@
       <SDLCheck>true</SDLCheck>
       <ConformanceMode>true</ConformanceMode>
       <EnableEnhancedInstructionSet>NoExtensions</EnableEnhancedInstructionSet>
+      <AssemblerOutput>All</AssemblerOutput>
     </ClCompile>
     <Link>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
@@ -86,6 +87,7 @@
       <EntryPointSymbol>__UsrAgent_Entry</EntryPointSymbol>
       <BaseAddress>0x40000000</BaseAddress>
       <AdditionalOptions>/ALIGN:64 %(AdditionalOptions)</AdditionalOptions>
+      <GenerateMapFile>true</GenerateMapFile>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
@@ -94,6 +96,7 @@
       <Optimization>Disabled</Optimization>
       <SDLCheck>true</SDLCheck>
       <ConformanceMode>true</ConformanceMode>
+      <AssemblerOutput>All</AssemblerOutput>
     </ClCompile>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
@@ -119,8 +122,12 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="apiset.c" />
+    <ClCompile Include="datadir.c" />
     <ClCompile Include="hellox.c" />
+    <ClCompile Include="loader.c" />
     <ClCompile Include="memory.c" />
+    <ClCompile Include="pteb.c" />
     <ClCompile Include="stdio.c" />
     <ClCompile Include="string.c" />
     <ClCompile Include="usragent.c" />
@@ -128,8 +135,14 @@
   <ItemGroup>
     <ClInclude Include="fmt_pe.h" />
     <ClInclude Include="hellox.h" />
+    <ClInclude Include="loader.h" />
+    <ClInclude Include="pteb.h" />
     <ClInclude Include="stdio.h" />
     <ClInclude Include="string.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <Text Include="apiset.txt" />
+    <Text Include="todo.txt" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

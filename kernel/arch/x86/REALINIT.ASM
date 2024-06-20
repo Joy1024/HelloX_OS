@@ -94,7 +94,16 @@ gl_initstart:
     mov ds,ax
     mov es,ax
     mov ss,ax
+	;;The end of first 4k space in memory is used as 
+	;;realinit's stack. Potential dangerous exist since
+	;;the stack may overload the reserved 4k space if
+	;;stack is too deep.
     mov sp,0x0ff0
+
+	;; Save dx register since it contains
+	;; the boot device number, transfered by
+	;; boot loader.
+	push dx
  
     mov ax,okmsg
     call np_strlen
@@ -110,30 +119,19 @@ gl_initstart:
 
 	;;Gather memory layout information.
 	call gl_collect_mlayout
- 
-    ;;Now,we have finished intializing the system 
-	;;hardware,enter protected mode.
- 
+
+	;; Activate a20 address line.
+	;; I don't know the reason of this step up to
+	;; now, just do it, fuck the real mode!
     call np_act20addr
- 
-    xor eax,eax
-    mov ax,ds
-    shl eax,0x04
-    add eax,gl_gdt_content       ;;Form the line address of the gdt content.
-    mov dword [gl_gdt_base],eax
-    lgdt [gl_gdt_ldr]            ;;Now,load the gdt register.
- 
-    mov ax,okmsg                 ;;--------- ** debug ** -----------------
-    call np_strlen
-    mov ax,okmsg
-    call np_printmsg
- 
-    mov eax,cr0
-    or eax,0x01                  ;;Set the PE bit of CR0 register.
-    mov cr0,eax                  ;;Enter the protected mode.
- 
-	;;Jump to protected mode's code.
-	jmp dword 0x08 : DEF_PM32_BEGIN
+
+	;; Now transfer to new loader, to continue loading
+	;; kernel into memory. 
+	;; Restore dx register from stack, since it
+	;; contains the boot device number, which will be
+	;; used by new loader.
+	pop dx
+	jmp 0x1200 : 0000;
 
 ;;Collect system memory range information,put them into memory layout
 ;;table.

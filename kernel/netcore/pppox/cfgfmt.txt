@@ -1,0 +1,23 @@
+Format of pppoe's configuration file in json:
+{
+	pppoe_sessions : [
+		{
+			session_name : hellox1,
+			user_name : hellox1,
+			password : hello,
+			base_genif : g1000_if_0,
+			auth_type : chap
+		},	
+		{
+			session_name : hellox2,
+			user_name : hellox2,
+			password : hello,
+			base_genif : g1000_if_1,
+			auth_type : any
+		},
+		{
+			......
+		}
+		],
+	......
+}

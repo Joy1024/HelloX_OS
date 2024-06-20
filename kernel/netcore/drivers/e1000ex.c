@@ -994,6 +994,9 @@ static int e1000ex_genif_output(struct __GENERIC_NETIF* pGenif, struct pbuf* pkt
 	priv = (i825xx_device_t*)pGenif->pGenifExtension;
 	BUG_ON(NULL == priv);
 
+	/* Apply callback first. */
+	genif_apply_callback(pGenif, pkt);
+
 	/*
 	 * Create a new ethernet buffer object, copy the pkt
 	 * into it,and submit the tx request by invoking _submit_tx_request
@@ -1140,7 +1143,12 @@ static BOOL _Init_E1000E(i825xx_device_t* priv)
 	pGenif->ha_len = ETH_MAC_LEN;
 	//pGenif->genif_input = e1000ex_genif_input;
 	pGenif->genif_input = general_ethernet_input;
-	pGenif->genif_output = e1000ex_genif_output;
+	pGenif->genif_l2_output = e1000ex_genif_output;
+	/* 
+	 * Use default IP output routine, since this is 
+	 * a common network interface.
+	 */
+	pGenif->genif_l3_output = general_ip_output;
 	pGenif->link_type = lt_ethernet;
 	pGenif->pGenifExtension = priv;
 	pGenif->genif_mtu = ETH_DEFAULT_MTU;

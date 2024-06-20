@@ -17,7 +17,7 @@
 #define __STDIO_H__
 
 #include "__hxcomm.h"
-#include "kapi.h"
+#include "hellox.h"
 
 #ifndef __VA_LIST_DEFINED__
 #define __VA_LIST_DEFINED__
@@ -83,5 +83,10 @@ int _hx_snprintf(char* buf,size_t n,const char* fmt,...);
 #ifndef snprintf
 #define snprintf _hx_snprintf
 #endif
+
+/*
+ *  sscanf(buf,fmt,va_alist)
+ */
+int sscanf(const char *buf, const char *fmt, ...);
 
 #endif //__STDIO_H__

@@ -91,6 +91,12 @@ BEGIN_DEFINE_OBJECT(__MAIL_BOX)
 	DWORD                dwCurrMessageNum; //Current message number in mailbox.
 	DWORD                dwMessageHeader;  //Pointing to message array's header.
 	DWORD                dwMessageTail;    //Pointing to message array's tail.
+	/* 
+	 * Max message number in the box waiting for get. 
+	 * This counter is used to debugging, it could
+	 * be viewed in kobjshow command.
+	 */
+	unsigned long        max_total_msg_num;
 	__PRIORITY_QUEUE*    lpSendingQueue;   //Kernel thread(s) try to send mail.
 	__PRIORITY_QUEUE*    lpGettingQueue;   //Kernel thread(s) try to get mail.
 #if defined(__CFG_SYS_SMP)

@@ -190,6 +190,9 @@ err_t pppifOutput(struct netif *netif, struct pbuf *pb, ip_addr_t *ipaddr);
 /* PPPoE main thread's name. */
 #define PPPOE_MAIN_THREAD_NAME "pppoeMain"
 
+/* File name that pppoe configuration is saved in. */
+#define PPPOE_CONFIG_FILENAME "C:\\SYSCFG\\PPPOE.CFG"
+
 /* Global PPPoE manager object. */
 extern __PPPOE_MANAGER pppoeManager;
 

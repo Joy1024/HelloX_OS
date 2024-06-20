@@ -25,7 +25,7 @@
  *     @(#)s_copysign.c 1.3 95/01/18
  */
 
-#include "kapi.h"
+#include "hellox.h"
 #include "math.h"
 
 /* copysign(x,y) returns a value with the magnitude of x and

@@ -17,6 +17,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <cJSON/cJSON.h>
 
 #include "netif/ppp_oe.h"
 #include "pppdebug.h"
@@ -31,6 +32,7 @@
 #include "oe_pro.h"
 #include "netglob.h"
 #include "ppp.h"
+#include "ppp_impl.h"
 #include "precfg.h"
 
 /* PPPoE session ID. */
@@ -467,6 +469,7 @@ void ListPPPoE()
 		_hx_printf("    auth type: %s\r\n", auth_type_string[pInstance->authType]);
 		_hx_printf("    status: %s\r\n", session_status_string[pInstance->status]);
 		_hx_printf("    restart count: %d\r\n", pInstance->restart_count);
+		show_ppp_session(pInstance->ppp_session_id);
 		_hx_printf("\r\n");
 		pInstance = pInstance->pNext;
 	}
@@ -708,6 +711,51 @@ static BOOL pppoePostFrameHandler(__PPPOE_MANAGER* pMgr, __PPPOE_POSTFRAME_BLOCK
 	return TRUE;
 }
 
+/* Retrieve session information from configure object. */
+static BOOL __get_session_info(cJSON* cfg_object,
+	char* session_name,
+	char* user_name,
+	char* password,
+	char* genif_name,
+	char* auth_type)
+{
+	BOOL bResult = FALSE;
+	cJSON* item = NULL;
+	char* session_info = NULL;
+
+	if (NULL == cfg_object)
+	{
+		goto __TERMINAL;
+	}
+
+	/* Use macro to simplify programming. */
+#define __RETRIEVE_INFO_FROM_OBJECT(attr_name, attr_dest)  \
+	item = cJSON_GetObjectItem(cfg_object, attr_name);     \
+	if (NULL == item)                                      \
+	{                                                      \
+		goto __TERMINAL;                                   \
+	}                                                      \
+	session_info = cJSON_GetStringValue(item);             \
+	if (NULL == session_info)                              \
+	{                                                      \
+		goto __TERMINAL;                                   \
+	}                                                      \
+	strcpy(attr_dest, session_info);
+
+	__RETRIEVE_INFO_FROM_OBJECT("session_name", session_name);
+	__RETRIEVE_INFO_FROM_OBJECT("user_name", user_name);
+	__RETRIEVE_INFO_FROM_OBJECT("password", password);
+	__RETRIEVE_INFO_FROM_OBJECT("base_genif", genif_name);
+	__RETRIEVE_INFO_FROM_OBJECT("auth_type", auth_type);
+
+#undef __RETRIEVE_INFO_FROM_OBJECT
+
+	bResult = TRUE;
+
+__TERMINAL:
+	return bResult;
+}
+
 /* 
  * Retrieve saved pppoe configuration from system's 
  * config registry. If there is saved configuration,
@@ -720,84 +768,88 @@ static BOOL GetSavedConfig(char* session_name,
 	char* genif_name,
 	char* auth_type)
 {
-#if NET_PRECONFIG_ENABLE
-	/* Just return the pre-configured user information. */
-	strcpy(session_name, PPPOE_DEFAULT_SESSION_NAME);
-	strcpy(user_name, PPPOE_DEFAULT_USERNAME);
-	strcpy(user_pass, PPPOE_DEFAULT_PASSWORD);
-	strcpy(genif_name, PPPOE_DEFAULT_INT_NAME);
-	strcpy(auth_type, PPPOE_DEFAULT_AUTH_TYPE);
-
-	return TRUE;
-#else
-	/* Should load from system registry. */
-	HANDLE hCfgProfile = NULL;
-	char value_buff[SYSTEM_CONFIG_MAX_KVLENGTH];
+	HANDLE hCfgFile = NULL;
+	cJSON* cfg_root = NULL;
+	cJSON* session_array = NULL;
+	cJSON* cfg_object = NULL;
+	unsigned int file_sz = 0, load_sz = 0;
+	unsigned char* file_buff = NULL;
 	BOOL bResult = FALSE;
 
 	/* Verify the parameters. */
 	BUG_ON((NULL == user_name) || (NULL == user_pass));
 	BUG_ON((NULL == genif_name) || (NULL == auth_type));
 
-	hCfgProfile = SystemConfigManager.GetConfigProfile("pppoeMain");
-	if (NULL == hCfgProfile)
+	/* Load configuration file and parse it. */
+	Sleep(1000); 
+	hCfgFile = CreateFile(PPPOE_CONFIG_FILENAME,
+		FILE_ACCESS_READWRITE | FILE_OPEN_EXISTING,
+		0, NULL);
+	if (NULL == hCfgFile)
 	{
-		_hx_printf("[%s]could not get config profile\r\n", __func__);
+		_hx_printf("[%s]load config file[%s] failed.\r\n",
+			__func__, PPPOE_CONFIG_FILENAME);
+		goto __TERMINAL;
+	}
+	file_sz = GetFileSize(hCfgFile, NULL);
+	if (0 == file_sz)
+	{
+		goto __TERMINAL;
+	}
+	file_buff = (unsigned char*)_hx_malloc(file_sz);
+	if (NULL == file_buff)
+	{
+		goto __TERMINAL;
+	}
+	if (!ReadFile(hCfgFile, file_sz, file_buff, &load_sz))
+	{
+		_hx_printf("[%s]load file failed.\r\n", __func__);
+		goto __TERMINAL;
+	}
+	if (load_sz != file_sz)
+	{
+		_hx_printf("[%s]file may cruption[sz = %d, load = %d\r\n",
+			__func__, file_sz, load_sz);
+		goto __TERMINAL;
+	}
+	cfg_root = cJSON_Parse(file_buff);
+	if (NULL == cfg_root)
+	{
+		_hx_printf("[%s]parse config file failed.\r\n", __func__);
 		goto __TERMINAL;
 	}
 
-	/* Retrieve key-value and show it. */
-	if (SystemConfigManager.GetConfigEntry(hCfgProfile, "session_name",
-		value_buff, SYSTEM_CONFIG_MAX_KVLENGTH))
+	/* Load pre-configured session info. */
+	session_array = cJSON_GetObjectItem(cfg_root, "pppoe_sessions");
+	if (NULL == session_array)
 	{
-		strncpy(session_name, value_buff, PPPOE_SESSION_NAME_LEN);
-	}
-	else {
+		_hx_printf("[%s]can not get configure array.\r\n", __func__);
 		goto __TERMINAL;
 	}
-
-	if (SystemConfigManager.GetConfigEntry(hCfgProfile, "username",
-		value_buff, SYSTEM_CONFIG_MAX_KVLENGTH))
+	if (cJSON_GetArraySize(session_array) == 0)
 	{
-		strncpy(user_name, value_buff, PPPOE_USER_NAME_LEN);
-	}
-	else {
+		_hx_printf("[%s]no configure entry in array.\r\n", __func__);
 		goto __TERMINAL;
 	}
-
-	if (SystemConfigManager.GetConfigEntry(hCfgProfile, "password",
-		value_buff, SYSTEM_CONFIG_MAX_KVLENGTH))
-	{
-		strncpy(user_pass, value_buff, PPPOE_PASSWORD_LEN);
-	}
-	else {
-		goto __TERMINAL;
-	}
-
-	if (SystemConfigManager.GetConfigEntry(hCfgProfile, "bear_if",
-		value_buff, SYSTEM_CONFIG_MAX_KVLENGTH))
-	{
-		strncpy(genif_name, value_buff, GENIF_NAME_LENGTH);
-	}
-	else {
-		goto __TERMINAL;
-	}
-
-	if (SystemConfigManager.GetConfigEntry(hCfgProfile, "authentication",
-		value_buff, SYSTEM_CONFIG_MAX_KVLENGTH))
-	{
-		strncpy(auth_type, value_buff, PPPOE_AUTH_TYPE_LEN);
-	}
-	else {
-		goto __TERMINAL;
-	}
-
-	bResult = TRUE;
+	cfg_object = cJSON_GetArrayItem(session_array, 0);
+	/* Retrieve pre-configured session information. */
+	bResult = __get_session_info(cfg_object, session_name,
+		user_name, user_pass, genif_name, auth_type);
 
 __TERMINAL:
-	SystemConfigManager.ReleaseConfigProfile(hCfgProfile);
+	if (hCfgFile)
+	{
+		CloseFile(hCfgFile);
+	}
+	if (cfg_root)
+	{
+		cJSON_Delete(cfg_root);
+	}
+	if (file_buff)
+	{
+		_hx_free(file_buff);
+	}
 	return bResult;
-#endif
 }
 
 /* 

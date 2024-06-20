@@ -24,7 +24,7 @@
  *     @(#)e_pow.c 1.5 04/04/22
  */
 
-#include "kapi.h"
+#include "hellox.h"
 #include "math.h"
 
 /* pow(x,y) return x**y

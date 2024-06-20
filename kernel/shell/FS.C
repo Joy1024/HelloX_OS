@@ -26,12 +26,10 @@
 
 static HISOBJ s_hHiscmdInoObj = NULL;
 
-static struct __FS_GLOBAL_DATA{
-	__FS_ARRAY_ELEMENT  FsArray[FILE_SYSTEM_NUM];
-	BYTE                CurrentFs;                 //Current file system identifier.
-	CHAR                CurrentDir[MAX_FILE_NAME_LEN];
-	BOOL                bInitialized;              //Flag indicates if this structure has been inited.
-}FsGlobalData = {0};
+/* Global fs information. */
+__FS_GLOBAL_DATA FsGlobalData = {0};
+
+/* A local temporary buffer. */
 static char Buffer[256] = {0};
 
 /* command handler functions. */
@@ -39,7 +37,6 @@ static DWORD CommandParser(LPCSTR);
 static DWORD help(__CMD_PARA_OBJ*);
 static DWORD fs_exit(__CMD_PARA_OBJ*);
 static DWORD fslist(__CMD_PARA_OBJ*);
-static DWORD dir(__CMD_PARA_OBJ*);
 static DWORD cd(__CMD_PARA_OBJ*);
 static DWORD vl(__CMD_PARA_OBJ*);
 static DWORD md(__CMD_PARA_OBJ*);
@@ -48,7 +45,6 @@ static DWORD del(__CMD_PARA_OBJ*);
 static DWORD rd(__CMD_PARA_OBJ*);
 static DWORD ren(__CMD_PARA_OBJ*);
 static DWORD type(__CMD_PARA_OBJ*);
-static DWORD copy(__CMD_PARA_OBJ*);
 static DWORD use(__CMD_PARA_OBJ*);
 /* Initialize routine of fs command. */
 static DWORD init();
@@ -59,21 +55,21 @@ static struct __FDISK_CMD_MAP{
 	DWORD                (*CommandHandler)(__CMD_PARA_OBJ*);
 	LPSTR                lpszHelpInfo;
 }SysDiagCmdMap[] = {
-	{"fslist",     fslist,    "  fslist   : Show all available file systems."},
-	{"dir",        dir,       "  dir      : Show current directory's file list."},
-	{"cd",         cd,        "  cd       : Show or change current directory."},
-	{"vl",         vl,        "  vl       : Change current fs's volume label."},
-	{"md",         md,        "  md       : Create a new directory."},
-	{"mkdir",      mkdir,     "  mkdir    : Alias command of md."},
-	{"del",        del,       "  del      : Delete one file from current directory."},
-	{"rd",         rd,        "  rd       : Delete one sub-directory from current directory."},
-	{"ren",        ren,       "  ren      : Change file or directory's name."},
-	{"type",       type,      "  type     : Show a specified file's content."},
-	{"copy",       copy,      "  copy     : Copy file to other location,or reverse."},
-	{"use",        use,       "  use      : Set current file system."},
-	{"exit",       fs_exit,   "  exit     : Exit the application."},
-	{"help",       help,      "  help     : Print out this screen."},
-	{NULL,		   NULL,      NULL}
+	{"fslist",     fslist,            "  fslist   : Show all available file systems."},
+	{"dir",        __handler_fs_dir,  "  dir      : Show current directory's file list."},
+	{"cd",         cd,                "  cd       : Show or change current directory."},
+	{"vl",         vl,                "  vl       : Change current fs's volume label."},
+	{"md",         md,                "  md       : Create a new directory."},
+	{"mkdir",      mkdir,             "  mkdir    : Alias command of md."},
+	{"del",        __handler_fs_del,  "  del      : Delete file(s) from current directory."},
+	{"rd",         rd,                "  rd       : Delete one sub-directory from current directory."},
+	{"ren",        ren,               "  ren      : Change file or directory's name."},
+	{"type",       type,              "  type     : Show a specified file's content."},
+	{"copy",       __handler_fs_copy, "  copy     : Copy file to other location,or reverse."},
+	{"use",        use,               "  use      : Set current file system."},
+	{"exit",       fs_exit,           "  exit     : Exit the application."},
+	{"help",       help,              "  help     : Print out this screen."},
+	{NULL,		   NULL,              NULL}
 };
 
 static DWORD QueryCmdName(LPSTR pMatchBuf,INT nBufLen)
@@ -174,7 +170,7 @@ DWORD fsEntry(LPVOID p)
 //
 static DWORD fs_exit(__CMD_PARA_OBJ* lpCmdObj)
 {
-	memzero(&FsGlobalData,sizeof(struct __FS_GLOBAL_DATA));
+	memzero(&FsGlobalData,sizeof(__FS_GLOBAL_DATA));
 	return SHELL_CMD_PARSER_TERMINAL;
 }
 
@@ -219,81 +215,6 @@ static DWORD fslist(__CMD_PARA_OBJ* pcpo)
 	return SHELL_CMD_PARSER_SUCCESS;;
 }
 
-//A local helper routine to print the directory list,used by dir command.
-static VOID PrintDir(FS_FIND_DATA* pFindData)
-{
-	CHAR    Buffer[MAX_FILE_NAME_LEN] = {0};
-
-	if(!pFindData->bGetLongName)
-	{
-		_hx_sprintf(Buffer,"%13s    %16d    %4s",
-					pFindData->cAlternateFileName,
-		            pFindData->nFileSizeLow,
-		            (pFindData->dwFileAttribute & FILE_ATTR_DIRECTORY) ? "DIR" : "FILE");
-	}
-	else
-	{
-		_hx_sprintf(Buffer,"%s",strlen(pFindData->cFileName)?pFindData->cFileName:pFindData->cAlternateFileName);
-	}
-
-	PrintLine(Buffer);	
-}
-
-static DWORD dir(__CMD_PARA_OBJ* pCmdObj)
-{
-#ifdef __CFG_SYS_DDF
-	FS_FIND_DATA      ffd         = {0};
-	__COMMON_OBJECT*  pFindHandle = NULL;
-	BOOL              bFindNext   = FALSE;
-	
-	strcpy(Buffer,FsGlobalData.CurrentDir);
-	ToCapital(Buffer);
-	
-	if(pCmdObj->byParameterNum >= 2 && strcmp(pCmdObj->Parameter[1],"-l") == 0)
-	{
-		ffd.bGetLongName = TRUE;
-	}
-		
-	pFindHandle = IOManager.FindFirstFile((__COMMON_OBJECT*)&IOManager,	Buffer,	&ffd);
-	if(NULL == pFindHandle)
-	{		
-		_hx_printf("Can not open directory[%s].\r\n", Buffer);
-		goto __TERMINAL;
-	}
-
-	//Dump out the directory's content.
-	if(ffd.bGetLongName)	
-	{		
-		PrintLine("File_Name                                ");
-	}
-	else
-	{	
-		PrintLine("    File_Name            FileSize     F_D");
-	}
-	PrintLine("--------------------------------------------");
-
-	do{
-		PrintDir(&ffd);
-		bFindNext = IOManager.FindNextFile((__COMMON_OBJECT*)&IOManager,
-			Buffer,
-			pFindHandle,
-			&ffd);
-
-	}while(bFindNext);
-
-	PrintLine("--------------------------------------------");
-	//Close the find handle.
-	IOManager.FindClose((__COMMON_OBJECT*)&IOManager,
-		Buffer,
-		pFindHandle);
-
-__TERMINAL:
-	return SHELL_CMD_PARSER_SUCCESS;;
-#else
-	return FS_CMD_FAILED;
-#endif
-}
-
 static DWORD cd(__CMD_PARA_OBJ* pCmdObj)
 {
 #ifdef __CFG_SYS_DDF
@@ -332,12 +253,14 @@ static DWORD cd(__CMD_PARA_OBJ* pCmdObj)
 	if((dwFileAttr = IOManager.GetFileAttributes((__COMMON_OBJECT*)&IOManager,
 		NewPath)) == 0)  //Use GetFileAttributes to verify the validity of new directory.
 	{
-		PrintLine("  Bad target directory name.");
+		_hx_printf("Open dir[%s] fail[0x%X].\r\n",
+			NewPath,
+			GetLastError());
 		goto __TERMINAL;
 	}
 	if((dwFileAttr & FILE_ATTR_DIRECTORY) == 0)   //Is not a directory,is a regular file.
 	{
-		PrintLine("  Please specify a DIRECTORY name,not a file name.");
+		PrintLine("  Directory name is desired.");
 		goto __TERMINAL;
 	}
 	//Validation is ok,set the new path as current directory.
@@ -382,34 +305,6 @@ static DWORD md(__CMD_PARA_OBJ* pCmdObj)
 static DWORD mkdir(__CMD_PARA_OBJ* pCmdObj)
 {
 	return md(pCmdObj);
-}
-
-static DWORD del(__CMD_PARA_OBJ* pCmdObj)
-{
-#ifdef __CFG_SYS_DDF
-	CHAR     FullName[MAX_FILE_NAME_LEN];
-	BOOL     bResult = FALSE;
-
-	if(pCmdObj->byParameterNum < 2)
-	{
-		_hx_printf("  No file specified.\r\n");
-		goto __TERMINAL;
-	}
-	strcpy(FullName,FsGlobalData.CurrentDir);
-	strcat(FullName,pCmdObj->Parameter[1]);
-	ToCapital(FullName);
-	bResult = IOManager.DeleteFile((__COMMON_OBJECT*)&IOManager,
-		FullName);
-	if(!bResult)
-	{
-		_hx_printf("  Can not delete the specified file.");
-		goto __TERMINAL;
-	}
-__TERMINAL:
-	return SHELL_CMD_PARSER_SUCCESS;;
-#else
-	return FS_CMD_FAILED;
-#endif
 }
 
 static DWORD rd(__CMD_PARA_OBJ* pCmdObj)
@@ -584,7 +479,8 @@ static unsigned long type(__CMD_PARA_OBJ* pCmdObj)
 		NULL);
 	if(NULL == hFile)
 	{
-		_hx_printf("  Can not open[%s].\r\n", FullName);
+		_hx_printf("Open file [%s] error [0x%X].\r\n", 
+			FullName, GetLastError());
 		goto __TERMINAL;
 	}
 
@@ -598,7 +494,8 @@ static unsigned long type(__CMD_PARA_OBJ* pCmdObj)
 			pBuffer,
 			&dwReadSize))
 		{
-			_hx_printf("  Failed to read file.\r\n");
+			_hx_printf("Read file error [0x%X].\r\n",
+				GetLastError());
 			goto __TERMINAL;
 		}
 		for(i = 0;i < dwReadSize;i ++)
@@ -665,200 +562,6 @@ __TERMINAL:
 #else
 	return FS_CMD_FAILED;
 #endif
-}
-
-/* Helper routine to check if a given file name is relative. */
-static BOOL IsRelative(char* pszFileName)
-{
-	BUG_ON(NULL == pszFileName);
-	if (strlen(pszFileName) < 2)
-	{
-		return TRUE;
-	}
-	/* It's a absolately path if the second character is ':'. */
-	if (':' == pszFileName[1])
-	{
-		/* Only FS identifier and ':',no more characters. */
-		if (strlen(pszFileName) == 2)
-		{
-			return TRUE;
-		}
-		return FALSE;
-	}
-	if (strlen(pszFileName) > 4)
-	{
-		/* Device name also is not relative. */
-		if ((pszFileName[0] == '\\') &&
-			(pszFileName[1] == '\\') &&
-			(pszFileName[2] == '.') &&
-			(pszFileName[3] == '\\'))
-		{
-			return FALSE;
-		}
-	}
-	/* All other cases are relative path. */
-	return TRUE;
-}
-
-/*
- * Copy the content in source file to destination file.
- * Device, such as partition, also could be duplicated
- * by this command.
- */
-static unsigned long copy(__CMD_PARA_OBJ* pCmdObj)
-{
-	HANDLE hSourceFile = NULL, hDestinationFile = NULL;
-	char* pBuffer = NULL;
-	DWORD dwReadSize = 0, dwWriteSize = 0, dwTotalRead = 0;
-	char srcFullName[MAX_FILE_NAME_LEN];
-	char dstFullName[MAX_FILE_NAME_LEN];
-	unsigned long file_sz_high = 0;
-	unsigned long long total_size = 0, batch_size = 0;
-
-	if (pCmdObj->byParameterNum < 3)
-	{
-		_hx_printf("  No files specified.\r\n");
-		goto __TERMINAL;
-	}
-	/* Construct source file's full name. */
-	if (IsRelative(pCmdObj->Parameter[1]))
-	{
-		/* Append current directory into the relative file name. */
-		strcpy(srcFullName, FsGlobalData.CurrentDir);
-		strcat(srcFullName, pCmdObj->Parameter[1]);
-	}
-	else
-	{
-		strcpy(srcFullName, pCmdObj->Parameter[1]);
-	}
-	ToCapital(srcFullName);
-
-	/* Construct destination file's full name. */
-	if (IsRelative(pCmdObj->Parameter[2]))
-	{
-		/* Append current directory into the relative file name. */
-		strcpy(dstFullName, FsGlobalData.CurrentDir);
-		strcat(dstFullName, pCmdObj->Parameter[2]);
-	}
-	else
-	{
-		strcpy(dstFullName, pCmdObj->Parameter[2]);
-	}
-	ToCapital(dstFullName);
-
-	/* Can not copy one file to itself. */
-	if (0 == strcmp(srcFullName, dstFullName))
-	{
-		_hx_printf("  Files are same.\r\n");
-		goto __TERMINAL;
-	}
-
-	/* Try to open the source file. */
-	hSourceFile = IOManager.CreateFile((__COMMON_OBJECT*)&IOManager,
-		srcFullName,
-		FILE_ACCESS_READ,
-		0,
-		NULL);
-	if (NULL == hSourceFile)
-	{
-		_hx_printf("  Can not open[%s].\r\n", srcFullName);
-		goto __TERMINAL;
-	}
-
-	/* Try to open or create the destination file name. */
-	hDestinationFile = IOManager.CreateFile((__COMMON_OBJECT*)&IOManager,
-		dstFullName,
-		FILE_OPEN_ALWAYS,
-		0,
-		NULL);
-	if (NULL == hDestinationFile)
-	{
-		_hx_printf("  Can not open[%s].\r\n",
-			dstFullName);
-		goto __TERMINAL;
-	}
-
-	/* Get the source file's size. */
-	total_size = GetFileSize(hSourceFile, &file_sz_high);
-	if (0 == total_size)
-	{
-		goto __TERMINAL;
-	}
-	total_size += (unsigned long long)file_sz_high << 32;
-	batch_size = total_size / 64;
-
-	/* Allocate a buffer to hold the file's data. */
-#define __TMP_FILE_BUFFSZ (128 * 1024)
-	pBuffer = (char*)_hx_malloc(__TMP_FILE_BUFFSZ);
-	if (NULL == pBuffer)
-	{
-		_hx_printf("[%s]: Out of memory.\r\n", __func__);
-		goto __TERMINAL;
-	}
-
-	/* Copy data now. */
-	do {
-		/* Read the source file. */
-		if (!IOManager.ReadFile((__COMMON_OBJECT*)&IOManager,
-			hSourceFile,
-			__TMP_FILE_BUFFSZ,
-			pBuffer,
-			&dwReadSize))
-		{
-			_hx_printf("Read file failure.\r\n");
-			goto __TERMINAL;
-		}
-
-		/* 
-		 * Write the data block into destination file. 
-		 * read size maybe 0 in case of EOF.
-		 */
-		if (dwReadSize)
-		{
-			if (!IOManager.WriteFile((__COMMON_OBJECT*)&IOManager,
-				hDestinationFile,
-				dwReadSize,
-				pBuffer,
-				&dwWriteSize))
-			{
-				_hx_printf("Write file failure.\r\n");
-				goto __TERMINAL;
-			}
-			dwTotalRead += dwReadSize;
-		}
-
-		/* Show out copying progress. */
-		if (batch_size < dwReadSize)
-		{
-			_hx_printf(".");
-			batch_size = total_size / 64;
-		}
-		else
-		{
-			batch_size -= dwReadSize;
-		}
-	} while (dwReadSize == __TMP_FILE_BUFFSZ);
-#undef __TMP_FILE_BUFFSZ
-
-__TERMINAL:
-	_hx_printf("\r\n");
-	_hx_printf("[copy]: %d byte(s) copied.\r\n", dwTotalRead);
-
-	if (NULL != hSourceFile)
-	{
-		IOManager.CloseFile((__COMMON_OBJECT*)&IOManager,
-			hSourceFile);
-	}
-	if (NULL != hDestinationFile)
-	{
-		IOManager.CloseFile((__COMMON_OBJECT*)&IOManager,
-			hDestinationFile);
-	}
-	if (NULL != pBuffer)
-	{
-		_hx_free(pBuffer);
-	}
-	return SHELL_CMD_PARSER_SUCCESS;;
 }
 
 static DWORD use(__CMD_PARA_OBJ* pCmdObj)

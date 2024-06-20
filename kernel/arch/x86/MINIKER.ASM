@@ -78,7 +78,7 @@
                                  ;;In additional,we can make other use of
                                  ;;this reserved memory.
 
-    jmp gl_reinitgdt             ;;The first part of the mini-kernal image is
+	jmp gl_reinitgdt             ;;The first part of the mini-kernal image is
                                  ;;data section,so the first instruction must
                                  ;;to jump to the actualy code section,which
                                  ;;start at gl_sysredirect.
@@ -265,8 +265,7 @@ align 8
 align 4
 gl_reinitgdt:                    ;;The following code initializes the GDT
                                  ;;and all of the segment registers.
-    lgdt [gl_gdtr_ldr]           ;;Load the new gdt content into gdt regis-
-                                 ;;ter.
+	lgdt [gl_gdtr_ldr]           ;;Load the new gdt content into gdt register.
     mov ax,0x010
     mov ds,ax
     mov ss,ax
@@ -287,7 +286,7 @@ gl_sysinit:                      ;;The start position of the init process.
     nop
     nop
     nop
-    mov eax,con_mast_start     
+    mov eax,con_mast_start
     jmp eax
 
 ;;A helper routine to set a TSS into GDT table.

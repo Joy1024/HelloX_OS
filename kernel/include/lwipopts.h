@@ -124,7 +124,7 @@
 #define TCPIP_THREAD_PRIO                PRIORITY_LEVEL_HIGH
 
 //Mail box's size for TCP/IP thread.Increase this value may improve performance.
-#define TCPIP_MBOX_SIZE                  8
+#define TCPIP_MBOX_SIZE                  256
 
 //SLIP interface's thread name.
 #define SLIPIF_THREAD_NAME               "slipif_loop"

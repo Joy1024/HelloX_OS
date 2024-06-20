@@ -71,9 +71,11 @@ typedef unsigned long __HANDLE;
 typedef unsigned char       __U8;
 typedef unsigned short      __U16;
 typedef unsigned long       __U32;
+//typedef unsigned long long  __U64;
 typedef signed char         __S8;
 typedef signed short        __S16;
 typedef signed long         __S32;
+typedef signed long long    __S64;
 
 typedef unsigned char       __u8;
 typedef unsigned short      __u16;
@@ -83,6 +85,12 @@ typedef signed char         __s8;
 typedef signed short        __s16;
 typedef signed long         __s32;
 typedef signed long long    __s64;
+
+/* Exclusive operations for 64 bits integer. */
+void LockedIncrement64(__u64* large_int);  /* *large_int ++ */
+void LockedDecrement64(__u64* large_int);  /* *large_int -- */
+void LockedGet64(__u64* dest, __u64* src); /* *dest = *src, *src is exclusive accessed.  */
+void LockedPut64(__u64* dest, __u64* src); /* *dest = *src, *dest is exclusive accessed. */
 
 //size_t for ANSI C library.
 typedef unsigned int size_t;
@@ -133,6 +141,25 @@ typedef volatile unsigned int __SPIN_LOCK;
 /* Initial value is unlocked. */
 #define SPIN_LOCK_INIT_VALUE SPIN_LOCK_VALUE_UNLOCK
 
+/* 
+ * Read-write spin lock. 
+ * Functions:
+ * 1. Read can enter, if there is no write;
+ * 2. Write can enter, if there is no read;
+ * 3. Write can not enter, if there is read;
+ * 4. Write can not enter, if there is write;
+ * 5. Read can enter, if there is read;
+ * 6. Read can not enter, if there is write.
+ * The operations for rw spin lock is defined in
+ * arch specific header files, such as smpx86.h.
+ */
+typedef struct tag__RW_SPIN_LOCK {
+	volatile unsigned long rw_slock;
+}__RW_SPIN_LOCK;
+
+/* Init value of rw spin lock. */
+#define __INIT_RW_SPIN_LOCK(rw_lock) {(rw_lock).rw_slock = 0;}
+
 //
 //The definition of unsigned 64 bit integer.
 //
@@ -170,16 +197,6 @@ VOID u64Div(__U64*,__U64*,__U64*,__U64*);
 //
 VOID u64RotateLeft(__U64* lpu64_1,DWORD dwTimes);  //Shift dwTimes bit(s) of lpu64_1 to left.
 VOID u64RotateRight(__U64* lpu64_1,DWORD dwTimes); //Shift dwTimes bit(s) of lpu64_1 to right.
-
-//
-//Multiple operations.
-//
-// VOID u64Mul(__U64* lpu64_1,__U64* lpu64_2,__U64* lpu64_result);
-
-//
-//Divide operations.
-//
-//VOID u64Div(__U64* lpu64_1,__U64* lpu64_2,__U64* lpu64_result);
 
 //Convert a 64 bits integer to string.
 BOOL u64Hex2Str(__U64* lpu64,LPSTR lpszResult);

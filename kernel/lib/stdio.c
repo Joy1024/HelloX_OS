@@ -46,13 +46,14 @@
 // SUCH DAMAGE.
 // 
 
-#define ZEROPAD 1               // Pad with zero
-#define SIGN    2               // Unsigned/signed long
-#define PLUS    4               // Show plus
-#define SPACE   8               // Space if plus
-#define LEFT    16              // Left justified
-#define SPECIAL 32              // 0x
-#define LARGE   64              // Use 'ABCDEF' instead of 'abcdef'
+#define ZEROPAD     1               // Pad with zero
+#define SIGN        2               // Unsigned/signed long
+#define PLUS        4               // Show plus
+#define SPACE       8               // Space if plus
+#define LEFT        16              // Left justified
+#define SPECIAL     32              // 0x
+#define LARGE       64              // Use 'ABCDEF' instead of 'abcdef'
+#define LONGLONG    128             // 64 bits integer.
 
 #define is_digit(c) ((c) >= '0' && (c) <= '9')
 
@@ -73,7 +74,8 @@ static int skip_atoi(const char **s)
   return i;
 }
 
-static char *number(char *str, long num, int base, int size, int precision, int type)
+/* Revised to support 64 bits integer. */
+static char *number(char *str, long long num, int base, int size, int precision, int type)
 {
   char c, sign, tmp[66];
   char *dig = digits;
@@ -121,8 +123,8 @@ static char *number(char *str, long num, int base, int size, int precision, int 
   {
     while (num != 0)
     {
-      tmp[i++] = dig[((unsigned long) num) % (unsigned) base];
-      num = ((unsigned long) num) / (unsigned) base;
+      tmp[i++] = dig[((unsigned long long) num) % (unsigned) base];
+      num = ((unsigned long long) num) / (unsigned) base;
     }
   }
 
@@ -426,7 +428,7 @@ static char *flt(char *str, double num, int size, int precision, char fmt, int f
 int _hx_vsprintf(char *buf, const char *fmt, va_list args)
 {
   int len;
-  unsigned long num;
+  unsigned long long num;
   int i, base;
   char *str;
   char *s;
@@ -495,6 +497,12 @@ repeat:
       qualifier = *fmt;
       fmt++;
     }
+	/* support 'll'(64 bits integer) qualifier. */
+	if (*fmt == 'l')
+	{
+		flags |= LONGLONG;
+		fmt++;
+	}
 
     // Default base
     base = 10;
@@ -588,8 +596,17 @@ repeat:
         continue;
     }
 
-    if (qualifier == 'l')
-      num = va_arg(args, unsigned long);
+	if (qualifier == 'l')
+	{
+		if (flags & LONGLONG)
+		{
+			num = va_arg(args, unsigned long long);
+		}
+		else
+		{
+			num = va_arg(args, unsigned long);
+		}
+	}
     else if (qualifier == 'h')
     {
       if (flags & SIGN)

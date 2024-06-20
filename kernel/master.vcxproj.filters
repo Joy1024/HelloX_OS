@@ -350,9 +350,6 @@
     <ClCompile Include="lib\setjmp.c">
       <Filter>Source Files\lib</Filter>
     </ClCompile>
-    <ClCompile Include="lib\ctype.c">
-      <Filter>Source Files\lib</Filter>
-    </ClCompile>
     <ClCompile Include="lib\pthread_mutex.c">
       <Filter>Source Files\lib</Filter>
     </ClCompile>
@@ -516,9 +513,6 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="netcore\pppox\magic.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="netcore\pppox\md5.c">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="netcore\pppox\pap.c">
@@ -753,6 +747,171 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="kernel\dbm.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="netcore\ipsec\des.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="netcore\ipsec\ipsec.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="netcore\ipsec\sa.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="netcore\ipsec\ah.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="netcore\ipsec\util.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="netcore\ipsec\_sha1.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="netcore\ipsec\esp.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="netcore\ipsec\_md5.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="shell\ipseccmd.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="netcore\ipsec\test\md5_test.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="netcore\ipsec\test\des_test.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="netcore\ipsec\test\sha_test.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="netcore\ipsec\test\util_test.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="lib\_ctype.c">
+      <Filter>Source Files\lib</Filter>
+    </ClCompile>
+    <ClCompile Include="lib\ctype.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="netcore\ipsec\test\sa_test.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="netcore\ipsec\test\esp_test.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="netcore\ipsec\test\ah_test.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="netcore\ipsec\samgr.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="netcore\ipsec\ipsec_init.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="shell\vticmd.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="netcore\ipsec\ipsectun.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="netcore\gre\gretun.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="netcore\genip.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="netcore\routmgr\rtmgr.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="shell\rtcmd.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="netcore\pppox\genifpp.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="ssh\ssh.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="ssh\ssh_msg.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="ssh\ssh_pkt.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="ssh\ssh_text.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="ssh\sshbn.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="ssh\sshdes.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="ssh\sshdh.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="ssh\sshdss.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="ssh\sshmd5.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="ssh\sshrsa.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="ssh\sshsh256.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="ssh\sshsh512.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="ssh\sshsha.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="ssh\sss_terminal.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="shell\ssh2.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="netcore\hhtt\hhtt.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="netcore\ipsec\test\aes_test.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="netcore\ipsec\tinyaes.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="netcore\ipsec\aes.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="netcore\hhtt\ipcomm.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="netcore\pppox\chapmd5.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="netcore\cap\capture.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="netcore\cfgload.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="lib\wildcard.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="lib\regexp.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="shell\fs_dir.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="shell\fs_copy.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="shell\fs_del.c">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
@@ -991,9 +1150,6 @@
     <ClInclude Include="lib\limits.h">
       <Filter>Header Files\lib_hdr</Filter>
     </ClInclude>
-    <ClInclude Include="lib\ctype.h">
-      <Filter>Header Files\lib_hdr</Filter>
-    </ClInclude>
     <ClInclude Include="lib\setjmp.h">
       <Filter>Header Files\lib_hdr</Filter>
     </ClInclude>
@@ -1133,9 +1289,6 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="netcore\pppox\magic.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="netcore\pppox\md5.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="netcore\pppox\pap.h">
@@ -1294,6 +1447,111 @@
     <ClInclude Include="include\dbm.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="netcore\ipsec\des.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="netcore\ipsec\debug.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="netcore\ipsec\util.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="netcore\ipsec\ipsec.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="netcore\ipsec\sa.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="netcore\ipsec\ah.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="netcore\ipsec\esp.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="netcore\ipsec\md5.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="netcore\ipsec\sha1.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="shell\ipseccmd.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="netcore\ipsec\test\structural_test.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="netcore\ipsec\test\test.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="lib\_ctype.h">
+      <Filter>Header Files\lib_hdr</Filter>
+    </ClInclude>
+    <ClInclude Include="lib\ctype.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="netcore\ipsec\test\sample_ah_pkt.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="netcore\ipsec\samgr.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="shell\vticmd.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="netcore\ipsec\ipsectun.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="netcore\gre\gretun.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="netcore\routmgr\iprte.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="netcore\routmgr\rtmgr.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="shell\rtcmd.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="netcore\pppox\genifpp.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="ssh\ssh_def.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="ssh\ssh_pkt.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="ssh\sshbn.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="netcore\hhtt\hhtt.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="netcore\ipsec\tinyaes.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="netcore\ipsec\aes.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="netcore\hhtt\ipcomm.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="netcore\pppox\chapmd5.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="netcore\cap\pcap.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="netcore\cap\capture.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="lib\wildcard.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="lib\regexp.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="Authors.txt">
@@ -1307,7 +1565,6 @@
     </None>
     <None Include="arch\x86\bootsect.asm" />
     <None Include="arch\x86\hdbs.asm" />
-    <None Include="arch\x86\miniker.asm" />
     <None Include="arch\x86\ntfsbs.asm" />
     <None Include="arch\x86\realinit.asm" />
     <None Include="arch\x86\realinit.bin">
@@ -1315,6 +1572,8 @@
     </None>
     <None Include="arch\x86\mbr.asm" />
     <None Include="arch\x86\fat32bs.asm" />
+    <None Include="arch\x86\newldr.asm" />
+    <None Include="netcore\network.cfg" />
   </ItemGroup>
   <ItemGroup>
     <Text Include="netcore\pppox\readme.txt" />
@@ -1336,5 +1595,14 @@
     <Text Include="doc\ip_hang.txt" />
     <Text Include="doc\upgrade.txt" />
     <Text Include="doc\lwip_mt.txt" />
+    <Text Include="doc\newldr.txt" />
+    <Text Include="netcore\ipsec\port.txt" />
+    <Text Include="doc\rwslock.txt" />
+    <Text Include="netcore\init_desc.txt" />
+    <Text Include="doc\vpncfg.txt" />
+    <Text Include="netcore\cap\todo.txt" />
+    <Text Include="netcore\dhcp_srv\jsnfmt.txt" />
+    <Text Include="netcore\pppox\cfgfmt.txt" />
+    <Text Include="doc\printf.txt" />
   </ItemGroup>
 </Project>

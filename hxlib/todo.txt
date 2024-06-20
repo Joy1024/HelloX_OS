@@ -1,0 +1,15 @@
+DONE:
+1. Port hellox.h/hellox.c files into this project;
+2. Port sockets and network files into this project;
+3. ptmalloc ported into this project;
+4. IO.C/IO.H revised and pass the compiling;
+2. Port cJSON into this project; --OK
+3. Compare with examapp/ forlder, port IO, regexp, wildmask, and other tools into this project; --OK
+6. Port atox.c/.h into this project; --OK
+
+TODO:
+1. done;
+4. port stdio.c to support 64 bits integer;
+5. Implement GetSystemTime routine, and revise the time.c to work;
+7. Implement recv/send/read/write.. routines in socket;
+8. Revise VirtualAlloc in ptmalloc.c to support allocate from heap;

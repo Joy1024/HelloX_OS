@@ -16,13 +16,24 @@
 #ifndef __FS_H__
 #define __FS_H__
 
-//Main entry of fs application.
-DWORD fsEntry(LPVOID);
+/* fs application's global data. */
+typedef struct tag__FS_GLOBAL_DATA {
+	__FS_ARRAY_ELEMENT FsArray[FILE_SYSTEM_NUM];
+	/* Current file system identifier. */
+	BYTE CurrentFs;
+	CHAR CurrentDir[MAX_FILE_NAME_LEN];
+	/* TRUE if this struct initialized. */
+	BOOL bInitialized;
+}__FS_GLOBAL_DATA;
 
-//Flags for command processing result.
-/*#define FS_CMD_TERMINAL     0x00000001
-#define FS_CMD_INVALID      0x00000002
-#define FS_CMD_FAILED       0x00000004
-#define FS_CMD_SUCCESS      0x00000008*/
+extern __FS_GLOBAL_DATA FsGlobalData;
+
+/* Sub command handlers. */
+DWORD __handler_fs_dir(__CMD_PARA_OBJ* pCmdObj);
+DWORD __handler_fs_copy(__CMD_PARA_OBJ* pCmdObj);
+DWORD __handler_fs_del(__CMD_PARA_OBJ* pCmdObj);
+
+/* Main entry of fs application. */
+DWORD fsEntry(LPVOID);
 
 #endif //__FS_H__

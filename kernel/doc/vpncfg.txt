@@ -1,0 +1,44 @@
+Common planing:
+Prepare the resources for each ht2 tunnel:
+   -- Tunnel's name(configed in client);
+   -- Tunnel's parent genif;
+   -- Peer's underlay IP address(peer-address, configured in server);
+   -- Ciphering key files;
+   -- IP segment between client and server;
+   -- Client's IP address;
+   -- Server's IP address(configured in tun0 of server);
+   -- Ciphering key file;
+   -- Static routes(configured both in client and in server);
+
+Client side on HelloX:
+1. Create several key files and put them into \syscfg directory;
+   -- Could be achieved by install procedure, since FS has issue;
+2. Create ht2 tunnels one by one as following:
+   -- Add ht2 VTI: vti add ht2 ht2_amaif0 pppoe_genif 192.168.254.2;
+   -- Set VTI's peer address: vti set ht2 [if_name] peer-addr [underlay address];
+   -- Set VTI's ciphering key file: vti set ht2 [if_name] key-file [file path&name];
+   -- Add the static route using the tunnel;
+3. Add PBR, associate the ingress and egress interfaces together: iproute pbradd g1000_if_1 ht2_amaif0;
+
+Client is OK.
+
+Notes:
+1. pppoe_genif is the genif's name of pppoe session;
+2. g1000_if_1 is the gigabit-ethernet name of blackbox which connecting to internal WiFi AP;
+
+Server side on Linux:
+//Compile the server, optional:
+1. Make sure the ciphering key file is in ht2_server directory;
+2. Modify the build in route and tun's ip address;
+   -- 192.168.0.0/16 segment should be added, through dev tun0;
+   -- tun0's ip address should be configed using above's planning;
+3. Compile the ht2_server app:
+   --gcc aes.h aes.c ht2_server.c -o ht2_server
+4. Change to root:
+   -- su
+5. start server:
+   -- nohup ./ht2_server aliif0.key > logfile_xxxx.log &
+6. Back to ubuntu
+   -- su ubuntu
+
+Then test the connections between client and server.

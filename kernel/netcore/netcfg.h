@@ -51,4 +51,7 @@
 
 #endif //defined(__CFG_NET_IPv4) || defined(__CFG_NET_IPv6)
 
+/* Configure file's name of network system. */
+#define NETWORK_CONFIG_FILENAME "C:\\SYSCFG\\NETWORK.CFG"
+
 #endif //__NETCFG_H__

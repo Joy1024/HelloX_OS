@@ -26,6 +26,18 @@
     <ClCompile Include="memory.c">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="pteb.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="loader.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="datadir.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="apiset.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="hellox.h">
@@ -40,5 +52,19 @@
     <ClInclude Include="string.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="pteb.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="loader.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <Text Include="todo.txt">
+      <Filter>Source Files</Filter>
+    </Text>
+    <Text Include="apiset.txt">
+      <Filter>Source Files</Filter>
+    </Text>
   </ItemGroup>
 </Project>

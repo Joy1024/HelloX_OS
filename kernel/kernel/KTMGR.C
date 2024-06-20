@@ -502,7 +502,14 @@ static __KERNEL_THREAD_OBJECT* __CreateKernelThread(
 		NULL,
 		0,
 		lpszName);
+	if (NULL == pKernelThread)
+	{
+		_hx_printf("[%s]create thread[%s] failed.\r\n",
+			__func__, lpszName);
+		goto __TERMINAL;
+	}
 	BUG_ON(!IS_KERNEL_THREAD(pKernelThread));
+__TERMINAL:
 	return pKernelThread;
 }
 
@@ -2082,8 +2089,8 @@ __KERNEL_THREAD_MANAGER KernelThreadManager = {
 	TerminateKernelThread,                           //TerminalKernelThread routine.
 	__Sleep,                                         //Sleep routine.
 	CancelSleep,                                     //CancelSleep routine.
-	GetLastError,                                    //GetLastError routine.
-	SetLastError,                                    //SetLastError routine.
+	_GetLastError,                                    //GetLastError routine.
+	_SetLastError,                                    //SetLastError routine.
 	__GetThreadID,                                   //GetThreadID routine.
 	GetThreadStatus,                                 //GetThreadStatus routine.
 	__SendMessage,                                   //SendMessage routine.

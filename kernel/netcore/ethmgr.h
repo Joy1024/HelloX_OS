@@ -411,12 +411,14 @@ struct __ETHERNET_MANAGER{
 extern struct __ETHERNET_MANAGER EthernetManager;
 
 /* Ethernet II frame's header. */
+#pragma pack(push, 1)
 typedef struct tag__ETHERNET_II_HEADER {
 	char mac_dst[ETH_MAC_LEN];
 	char mac_src[ETH_MAC_LEN];
 	uint16_t frame_type;
 	char payload[0];
 }__ETHERNET_II_HEADER;
+#pragma pack(pop)
 
 /* 
  * General input process of ethernet,this routine 

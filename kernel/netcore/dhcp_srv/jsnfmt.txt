@@ -1,0 +1,19 @@
+DHCP server allocations are saved into a file under c:\syscfg directory, 
+named dhcpd.cfg. It's a json file, and it's format as follows:
+{
+	genif1_name : [
+		{
+			"ip_addr"  : "192.168.169.2",
+			"mac_addr" : "01-00-5E-AA-BB-CC",
+			"lease_t"  : 15000
+		},
+		......
+		],
+	genif2_name : [
+		......
+		],
+	genif3_name : [
+		......
+		]
+	......
+}

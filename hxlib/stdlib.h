@@ -16,9 +16,8 @@
 #define __STDLIB_H__
 
 #include "__hxcomm.h"
-#ifndef __STDDEF_H__
 #include "stddef.h"
-#endif
+#include "ptmalloc/malloc.h"
 
 /**
  * Generate random number,the standard C routine.
@@ -29,16 +28,6 @@
 
 long rand();
 void srand(unsigned long seed);
-
-//Standard C malloc/free/calloc routine.A dedicated prefix _hx_ is appended
-//before the standard name to distinguish the HX version and standard version.
-//The intention is to lead compiler link the code to the right version.It will
-//lead conflict if we use standard name here,in some developing environment
-//that has it's own lib source.
-void* _hx_malloc(size_t size);
-void  _hx_free(void* p);
-void* _hx_calloc(size_t n,size_t s);
-void* _hx_alloca(size_t size);  //Allocate memory from STACK.
 
 //Environment related routine.
 char *_hx_getenv(char *envvar);
@@ -68,7 +57,38 @@ long atol(const char *nptr);
 int atoi(const char *nptr);
 
 //Convert a int to string.
-char* itoa(int value,char *buf,int radix);
+char* itoa(int value, char *buf, int radix);
+
+/*
+ *  atob(vp,p,base)
+ *      converts p to binary result in vp, rtn 1 on success
+ */
+int
+atob(uint32_t *vp, char *p, int base);
+
+/*
+ *  char *btoa(dst,value,base)
+ *      converts value to ascii, result in dst
+ */
+char *
+btoa(char *dst, unsigned int value, int base);
+
+/*
+ *  gethex(vp,p,n)
+ *      convert n hex digits from p to binary, result in vp,
+ *      rtn 1 on success
+ */
+int
+gethex(int32_t *vp, char *p, int n);
+
+/*
+ * The C library function double strtod(const char *str, char **endptr)
+ * converts the string pointed to by the argument str to a floating - point
+ * number(type double).If endptr is not NULL, a pointer to the character
+ * after the last character used in the conversion is stored in the
+ * location referenced by endptr.
+ */
+double strtod(const char *str, char **endptr);
 
 //exit and abort.
 void exit(int state);
@@ -90,6 +110,10 @@ void abort(void);
 
 #ifndef alloca
 #define alloca _hx_alloca
+#endif
+
+#ifndef realloc
+#define realloc _hx_realloc
 #endif
 
 #ifndef getenv

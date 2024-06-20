@@ -25,7 +25,7 @@
  *     @(#)s_atan.c 1.3 95/01/18
  */
 
-#include "kapi.h"
+#include "hellox.h"
 #include "math.h"
 
 /* atan(x)

@@ -17,10 +17,82 @@
 
 #include "StdAfx.h"
 
+/* 
+ * Exclusive operations for 64 bits integer, under
+ * 32 bits CPU. 
+ * CMPXCHG8B is used to make sure the operation
+ * is atomic. This instruction's operation as:
+ * 1) Compare EDX:EAX with m64;
+ * 2) If equal, set ZF and load ECX:EBX into m64;
+ * 3) Else, clear ZF and load m64 into EDX:EAX.
+ */
+void LockedIncrement64(__u64* large_int)
+{
+	__asm {
+		mov esi, large_int
+		mov eax, dword ptr[esi]
+		mov edx, dword ptr[esi + 4]
+	__AGAIN:
+		mov ebx, eax
+		mov ecx, edx
+		add ebx, 0x01
+		adc ecx, 0
+		lock cmpxchg8b [esi]
+		jnz __AGAIN
+	}
+}
+
+void LockedDecrement64(__u64* large_int)
+{
+	__asm {
+		mov esi, large_int
+		mov eax, dword ptr[esi]
+		mov edx, dword ptr[esi + 4]
+	__AGAIN:
+		mov ebx, eax
+		mov ecx, edx
+		sub ebx, 0x01
+		sbb ecx, 0
+		lock cmpxchg8b[esi]
+		jnz __AGAIN
+	}
+}
+
+void LockedGet64(__u64* dest, __u64* src)
+{
+	__asm {
+		mov esi, src
+		mov eax, dword ptr[esi]
+		mov edx, dword ptr[esi + 4]
+	__AGAIN:
+		mov ebx, eax
+		mov ecx, edx
+		lock cmpxchg8b[esi]
+		jnz __AGAIN
+		mov esi, dest
+		mov dword ptr[esi], ebx
+		mov dword ptr[esi + 4], ecx
+	}
+}
+
+void LockedPut64(__u64* dest, __u64* src)
+{
+	__asm {
+		mov esi, src
+		mov ebx, dword ptr[esi]
+		mov ecx, dword ptr[esi + 4]
+		mov esi, dest
+		mov eax, dword ptr[esi]
+		mov edx, dword ptr[esi + 4]
+	__AGAIN:
+		lock cmpxchg8b[esi]
+		jnz __AGAIN
+	}
+}
+
 //
 //The implementation of unsigned 64 bits add.
 //
-
 VOID u64Add(__U64* lpu64_1,__U64* lpu64_2,__U64* lpu64_result)
 {
 	if((NULL == lpu64_1) || (NULL == lpu64_2) || (NULL == lpu64_result)) //Parameters check.

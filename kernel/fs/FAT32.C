@@ -273,7 +273,7 @@ static BOOL _CreateDirectory(__COMMON_OBJECT* lpDev,
 
 	//Try to open the parent directory.
 	if (!GetDirEntry((__FAT32_FS*)pFatDevice->lpDevExtension,
-		DirName, &DirShortEntry, NULL, NULL))
+		DirName, &DirShortEntry, NULL, NULL, NULL))
 	{
 		_hx_printf("[%s]get file dir entry fail.\r\n", __func__);
 		return FALSE;
@@ -298,28 +298,30 @@ static __COMMON_OBJECT* FatDeviceOpen(__COMMON_OBJECT* lpDrv,
 	__COMMON_OBJECT* lpDev,
 	__DRCB* lpDrcb)
 {
-	static char NameIndex = 0;
+	static __atomic_t NameIndex = 0;
 	__FAT32_FILE* pFat32File = NULL;
 	__FAT32_FS* pFat32Fs = NULL;
 	__COMMON_OBJECT* pFileDevice = NULL;
 	char FileName[MAX_FILE_NAME_LEN];
 	__FAT32_SHORTENTRY  ShortEntry;
 	uint32_t dwDirClus = 0, dwDirOffset = 0;
-	unsigned long dwFlags;
+	unsigned long dwFlags, errors = 0;
 	BOOL bResult = FALSE;
-	char FileDevName[16];
+	char FileDevName[MAX_DEV_NAME_LEN];
 
 	BUG_ON((NULL == lpDrv) || (NULL == lpDev));
 
 	pFat32Fs = (__FAT32_FS*)(((__DEVICE_OBJECT*)lpDev)->lpDevExtension);
 	BUG_ON(NULL == pFat32Fs);
-	//StrCpy((LPSTR)lpDrcb->lpInputBuffer, FileName);
-	strncpy(FileName, (const char*)lpDrcb->lpInputBuffer, MAX_FILE_NAME_LEN - 1);
+	/* Get the file name. */
+	strncpy(FileName, (const char*)lpDrcb->lpInputBuffer, MAX_FILE_NAME_LEN);
 	/* Converr to capital. */
 	ToCapital(FileName);
-	if (!GetDirEntry(pFat32Fs, &FileName[0], &ShortEntry, &dwDirClus, &dwDirOffset))
+	if (!GetDirEntry(pFat32Fs, &FileName[0], &ShortEntry, 
+		&dwDirClus, &dwDirOffset, &errors))
 	{
 		/* File may not exist. */
+		errors |= FAT32_ERROR_NODIRENTRY;
 		goto __TERMINAL;
 	}
 
@@ -350,9 +352,13 @@ static __COMMON_OBJECT* FatDeviceOpen(__COMMON_OBJECT* lpDrv,
 	pFat32File->dwParentOffset = dwDirOffset;
 	pFat32File->pNext = NULL;
 	pFat32File->pPrev = NULL;
-	//Now insert the file object to file system object's file list.
+
+	/* 
+	 * Link the file object into file system 
+	 * object's file list.
+	 */
 	__ENTER_CRITICAL_SECTION_SMP(IOManager.spin_lock, dwFlags);
-	if (pFat32Fs->pFileList == NULL)  //Not any file object in list yet.
+	if (pFat32Fs->pFileList == NULL)
 	{
 		pFat32Fs->pFileList = pFat32File;
 		pFat32File->pNext = NULL;
@@ -367,21 +373,25 @@ static __COMMON_OBJECT* FatDeviceOpen(__COMMON_OBJECT* lpDrv,
 		pFat32Fs->pFileList = pFat32File;
 	}
 	__LEAVE_CRITICAL_SECTION_SMP(IOManager.spin_lock, dwFlags);
-	//Now create file device object.
-	//strcpy(FileDevName,FAT32_FILE_NAME_BASE);
-	StrCpy(FAT32_FILE_NAME_BASE, FileDevName);
-	FileDevName[13] += NameIndex;
-	NameIndex++;
+
+	/* 
+	 * Create the corresponding device object of 
+	 * the opened file. Each opened file is treated
+	 * as a special device in HelloX's DDF.
+	 */
+	strncpy(FileDevName, FAT32_FILE_NAME_BASE, MAX_DEV_NAME_LEN);
+	_hx_sprintf(FileDevName, FAT32_FILE_NAME_BASE, NameIndex);
+	__ATOMIC_INCREASE(&NameIndex);
 	pFileDevice = (__COMMON_OBJECT*)IOManager.CreateDevice((__COMMON_OBJECT*)&IOManager,
 		FileDevName,
-		DEVICE_TYPE_FILE,
-		1, //For file,block size is 1.
+		DEVICE_TYPE_FILE, 1,
 		DEVICE_BLOCK_SIZE_ANY,
 		DEVICE_BLOCK_SIZE_ANY,
 		pFat32File,
 		(__DRIVER_OBJECT*)lpDrv);
 	if (NULL == pFileDevice)
 	{
+		errors |= FAT32_ERROR_FILEDEVICE;
 		goto __TERMINAL;
 	}
 	bResult = TRUE;
@@ -398,6 +408,8 @@ __TERMINAL:
 			IOManager.DestroyDevice((__COMMON_OBJECT*)&IOManager,
 				(__DEVICE_OBJECT*)pFileDevice);
 		}
+		/* Save error info. */
+		SetLastError(errors);
 		return NULL;
 	}
 	return pFileDevice;
@@ -455,8 +467,8 @@ static DWORD FatDeviceClose(__COMMON_OBJECT* lpDrv,
 	return 0;
 }
 
-//Implementation of _fat32DeleteFile routine.
-static BOOL _fat32DeleteFile(__COMMON_OBJECT* lpDev,LPSTR pszFileName)       //Delete a file.
+/* Wrapper of delete file routine. */
+static BOOL _fat32DeleteFile(__COMMON_OBJECT* lpDev,LPSTR pszFileName)
 {
 	__FAT32_FS*        pFat32Fs   = NULL;
 
@@ -469,7 +481,7 @@ static BOOL _fat32DeleteFile(__COMMON_OBJECT* lpDev,LPSTR pszFileName)       //D
 	return DeleteFatFile(pFat32Fs,pszFileName);
 }
 
-//Implementation of _fat32FindClose routine.
+/* Close a find handle object. */
 static BOOL _fat32FindClose(__COMMON_OBJECT* lpThis, __COMMON_OBJECT* pHandle)
 {
 	__FAT32_FIND_HANDLE*  pFindHandle = (__FAT32_FIND_HANDLE*)pHandle;
@@ -507,7 +519,7 @@ static __FAT32_FIND_HANDLE* BuildFindHandle(__FAT32_FS* pFat32Fs,CHAR* pszDirNam
 	DWORD                   dwSector        = 0;
 	BOOL                    bResult         = FALSE;
 
-	if(!GetDirEntry(pFat32Fs,&pszDirName[0],&ShortEntry,NULL,NULL))
+	if(!GetDirEntry(pFat32Fs,&pszDirName[0],&ShortEntry,NULL,NULL, NULL))
 	{
 		goto __TERMINAL;
 	}
@@ -575,14 +587,14 @@ static __FAT32_FIND_HANDLE* BuildFindHandle(__FAT32_FS* pFat32Fs,CHAR* pszDirNam
 	}
 	pFindHandle->pCurrCluster = pFindHandle->pClusterRoot;
 	pDirCluster = NULL;  //Indicate the successful execution of above while block.
-	bResult = TRUE;  //Mark the successful flag.
+	bResult = TRUE;
 
 __TERMINAL:
-	if(bResult)  //Successful.
+	if(bResult)
 	{
 		return pFindHandle;
 	}
-	else  //Failed,should release the allocated resource.
+	else
 	{
 		if(pDirCluster)  //Directory cluster object has been allocated.
 		{
@@ -617,60 +629,64 @@ __RETURN:
 	}
 }
 
-//Another helper routine to fill one find data structure according to find handle.
-static BOOL FillFindData(__FAT32_FIND_HANDLE* pFindHandle,FS_FIND_DATA* pFindData)
+/* 
+ * Helper routine to fill one find data 
+ * structure according to find handle.
+ */
+static BOOL FillFindData(__FAT32_FIND_HANDLE* pFindHandle, FS_FIND_DATA* pFindData)
 {
-	__FAT32_SHORTENTRY*    pShortEntry                   = NULL;
-	CHAR                   szLongName[MAX_FILE_NAME_LEN] = {0};
-	BOOL                   bResult                       = FALSE;	
+	__FAT32_SHORTENTRY*    pShortEntry = NULL;
+	CHAR                   szLongName[MAX_FILE_NAME_LEN] = { 0 };
+	BOOL                   bResult = FALSE;
 	DWORD                  i;
 
-	while(pFindHandle->pCurrCluster)  //Search from current cluster.
+	/* Searching the directory clusters. */
+	while (pFindHandle->pCurrCluster)
 	{
-		__FAT32_LONGENTRY*  szLongEntry[64]     = {0};
-		INT                 nLongEntryNum       = 0;	
+		__FAT32_LONGENTRY*  szLongEntry[64] = { 0 };
+		INT                 nLongEntryNum = 0;
 
 		pShortEntry = (__FAT32_SHORTENTRY*)pFindHandle->pCurrCluster->pCluster;
 		pShortEntry += pFindHandle->dwClusterOffset / 32;
 		i = pFindHandle->dwClusterOffset / 32;
 
 		//Now try to find a valid directory short entry.
-		for(i;i < pFindHandle->dwClusterSize / 32;i ++)
+		for (i; i < pFindHandle->dwClusterSize / 32; i++)
 		{
-			if(0xE5 == (BYTE)pShortEntry->FileName[0])
+			if (0xE5 == (BYTE)pShortEntry->FileName[0])
 			{
 				pShortEntry += 1;
 				pFindHandle->dwClusterOffset += 32;
 				continue;
 			}
-			if(0 == pShortEntry->FileName[0])
+			if (0 == pShortEntry->FileName[0])
 			{
 				break;
 			}
-			if(FILE_ATTR_LONGNAME == pShortEntry->FileAttributes)
+			if (FILE_ATTR_LONGNAME == pShortEntry->FileAttributes)
 			{
 				//record long entry info
-				if(pFindData->bGetLongName)
+				if (pFindData->bGetLongName)
 				{
-					szLongEntry[nLongEntryNum ++ ] =  (__FAT32_LONGENTRY*)pShortEntry;
+					szLongEntry[nLongEntryNum++] = (__FAT32_LONGENTRY*)pShortEntry;
 				}
-				
+
 				pShortEntry += 1;
 				pFindHandle->dwClusterOffset += 32;
 				continue;
 			}
-			if(FILE_ATTR_VOLUMEID & pShortEntry->FileAttributes)
+			if (FILE_ATTR_VOLUMEID & pShortEntry->FileAttributes)
 			{
 				pShortEntry += 1;
 				pFindHandle->dwClusterOffset += 32;
 				continue;
 			}
 
-			if(pFindData->bGetLongName)
+			if (pFindData->bGetLongName)
 			{
-				CombinLongFileName(szLongEntry,nLongEntryNum,szLongName);
+				CombinLongFileName(szLongEntry, nLongEntryNum, szLongName);
 			}
-				
+
 			//Normal short entry,return it.
 			pFindHandle->dwClusterOffset += 32;
 			bResult = TRUE;
@@ -679,14 +695,20 @@ static BOOL FillFindData(__FAT32_FIND_HANDLE* pFindHandle,FS_FIND_DATA* pFindDat
 		pFindHandle->pCurrCluster = pFindHandle->pCurrCluster->pNext;
 		pFindHandle->dwClusterOffset = 0;
 	}
-__FIND:
-	if(bResult)
-	{
-		ConvertShortEntry(pShortEntry,pFindData);
 
-		if(pFindData->bGetLongName)
+__FIND:
+	if (bResult)
+	{
+		ConvertShortEntry(pShortEntry, pFindData);
+
+		if (pFindData->bGetLongName)
 		{
-			strcpy(pFindData->cFileName,szLongName);
+			if (0 == szLongName[0])
+			{
+				/* No long name, use short fill it. */
+				strncpy(szLongName, pFindData->cAlternateFileName, MAX_FILE_NAME_LEN);
+			}
+			strncpy(pFindData->cFileName, szLongName, MAX_FILE_NAME_LEN);
 		}
 	}
 	return bResult;
@@ -743,25 +765,25 @@ static DWORD FatDeviceFlush(__COMMON_OBJECT* lpDrv,
 	return FALSE;
 }
 
-
 /* Get a file object's attributes. */
 static DWORD _fat32GetFileAttributes(__COMMON_OBJECT* lpDev, LPCTSTR  pszFileName)
 {
-	__FAT32_FS*         pFat32Fs      = NULL;
-	CHAR                FileName[MAX_FILE_NAME_LEN];
-	__FAT32_SHORTENTRY  ShortEntry;
-	DWORD               dwFileAttributes = 0;
+	__FAT32_FS* pFat32Fs = NULL;
+	CHAR FileName[MAX_FILE_NAME_LEN];
+	__FAT32_SHORTENTRY ShortEntry;
+	DWORD dwFileAttributes = 0;
+	unsigned long errors = 0;
 
-	if((NULL == pszFileName) || (NULL == lpDev))
+	if ((NULL == pszFileName) || (NULL == lpDev))
 	{
 		goto __TERMINAL;
 	}
 	pFat32Fs = (__FAT32_FS*)(((__DEVICE_OBJECT*)lpDev)->lpDevExtension);
-	StrCpy((CHAR*)pszFileName,FileName);
+	StrCpy((CHAR*)pszFileName, FileName);
 	ToCapital(FileName);
-	if(!GetDirEntry(pFat32Fs,&FileName[0],&ShortEntry,NULL,NULL))
+	if (!GetDirEntry(pFat32Fs, &FileName[0], &ShortEntry, NULL, NULL, &errors))
 	{
-		_hx_printf("[%s]get dir entry fail.\r\n", __func__);
+		SetLastError(errors);
 		goto __TERMINAL;
 	}
 	dwFileAttributes = ShortEntry.FileAttributes;

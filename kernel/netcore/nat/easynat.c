@@ -606,6 +606,8 @@ static BOOL validateTCPChksum(struct ip_hdr* p, struct pbuf* pb)
 		IP_STATS_INC(tcp.drop);
 		//return FALSE;
 	}
+	/* Must restore the original's checksum. */
+	pTcpHdr->chksum = chksum_old;
 	return TRUE;
 }
 

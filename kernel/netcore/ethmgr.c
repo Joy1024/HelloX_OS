@@ -24,6 +24,7 @@
 #include <lwip/inet.h>
 
 #include "hx_eth.h"
+#include "netmgr.h"
 #include "ethmgr.h"
 #include "ebridge/ethbrg.h"
 #include "proto.h"
@@ -723,6 +724,16 @@ static DWORD EthCoreThreadEntry(LPVOID pData)
 	__ETH_INTERFACE_STATE* pifState = NULL;
 	int tot_len = 0, index = 0;
 
+	/* Load network configure database into memory. */
+	if (!LoadNetworkConfig())
+	{
+		__LOG("[%s]can not load network config.\r\n", __func__);
+	}
+	else
+	{
+		__LOG("[%s]load network configure database OK.\r\n", __func__);
+	}
+
 	/*
 	 * Loads all builtin ethernet card driver(s).
 	 * The builtin drivers are whose source code is
@@ -866,10 +877,14 @@ static DWORD EthCoreThreadEntry(LPVOID pData)
 	}
 
 __TERMINAL:
-	if (hTimer)  //Should cancel it.
+	/* Cancel the timer. */
+	if (hTimer)
 	{
 		CancelTimer(hTimer);
 	}
+	/* Release network configure information. */
+	ReleaseNetworkConfig();
+
 	return 0;
 }
 

@@ -86,6 +86,9 @@ int general_ethernet_input(__GENERIC_NETIF* pGenif, struct pbuf* p)
 		goto __TERMINAL;
 	}
 
+	/* Apply call back. */
+	genif_apply_callback(pGenif, p);
+
 	pEthHdr = (__ETHERNET_II_HEADER*)p->payload;
 	if (Eth_MAC_Match(&pEthHdr->mac_dst[0], &pGenif->genif_ha[0]))
 	{

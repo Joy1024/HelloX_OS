@@ -44,10 +44,26 @@ HANDLE CreateUserThread(
 	char* pszName);
 VOID DestroyUserThread(HANDLE hThread);
 DWORD SetLastError(DWORD dwNewError);
-DWORD GetLastError(void);
 DWORD GetThreadID(HANDLE hThread);
 DWORD SetThreadPriority(HANDLE hThread, DWORD dwPriority);
 HANDLE GetCurrentThread(void);
+
+/* Get error number of current thread. */
+DWORD GetLastError(void)
+{
+	DWORD dwError = 0;
+	DWORD* pError = &dwError;
+	__asm {
+		push ebp
+		push eax
+		mov eax, pError
+		mov ebp, eax
+		mov eax, SYSCALL_GETLASTERROR
+		int SYSCALL_VECTOR
+		pop eax
+		pop ebp
+	}
+}
 
 /* Message operation. */
 BOOL GetMessage(MSG* pMsg)

@@ -443,23 +443,48 @@ void __ShowMailboxObject(__COMMON_OBJECT* pObject)
 {
 	__MAIL_BOX* pMailbox = (__MAIL_BOX*)pObject;
 	unsigned long getq_num = 0, sendq_num = 0;
+	unsigned long max_total_msg_num = 0;
 	unsigned long object_id, max_msg_num, curr_msg_num;
 	unsigned long ulFlags;
+	__KERNEL_THREAD_OBJECT* pThreadGet = NULL;
+	__KERNEL_THREAD_OBJECT* pThreadPut = NULL;
 
 	BUG_ON(NULL == pMailbox);
 	/* Lock the mailbox object and get all it's state. */
 	__ENTER_CRITICAL_SECTION_SMP(pMailbox->spin_lock, ulFlags);
 	getq_num = pMailbox->lpGettingQueue->dwCurrElementNum;
+	if (getq_num)
+	{
+		/* Just get the first waiting thread object. */
+		pThreadGet = (__KERNEL_THREAD_OBJECT*)pMailbox->lpGettingQueue->ElementHeader.lpNextElement->lpObject;
+	}
 	sendq_num = pMailbox->lpSendingQueue->dwCurrElementNum;
+	if (sendq_num)
+	{
+		pThreadPut = (__KERNEL_THREAD_OBJECT*)pMailbox->lpSendingQueue->ElementHeader.lpNextElement->lpObject;
+	}
 	object_id = pMailbox->dwObjectID;
+	max_total_msg_num = pMailbox->max_total_msg_num;
 	max_msg_num = pMailbox->dwMaxMessageNum;
 	curr_msg_num = pMailbox->dwCurrMessageNum;
 	__LEAVE_CRITICAL_SECTION_SMP(pMailbox->spin_lock, ulFlags);
 
 	/* Then show out. */
-	_hx_printf("Mailbox: id[%d], max_msg_num[%d], curr_msg_num[%d], gq_num[%d], sq_num[%d]\r\n",
-		object_id, max_msg_num, curr_msg_num,
-		getq_num, sendq_num);
+	_hx_printf("Mailbox: id[%d], max_msg_num[%d], max_total_msg_num[%d], curr_msg_num[%d], gq_num[%d], sq_num[%d]\r\n",
+		object_id, 
+		max_msg_num, 
+		max_total_msg_num,
+		curr_msg_num,
+		getq_num, 
+		sendq_num);
+	if (pThreadGet)
+	{
+		_hx_printf("  1st thread in getting queue: %s\r\n", pThreadGet->KernelThreadName);
+	}
+	if (pThreadPut)
+	{
+		_hx_printf("  1st thread in putting queue: %s\r\n", pThreadPut->KernelThreadName);
+	}
 	return;
 }
 
@@ -733,7 +758,7 @@ static VOID __SendMail(__MAIL_BOX* pMailbox, LPVOID pMessage, DWORD dwPriority)
 			(__COMMON_OBJECT*)pMailbox->lpGettingQueue, NULL);
 		if (pKernelThread)
 		{
-			//Wakeup the kernel thread.
+			/* Wake up the first kernel thread waiting for message. */
 			__ENTER_CRITICAL_SECTION_SMP(pKernelThread->spin_lock, ulFlags);
 			pKernelThread->dwThreadStatus = KERNEL_THREAD_STATUS_READY;
 			pKernelThread->dwWaitingStatus &= ~OBJECT_WAIT_MASK;
@@ -749,6 +774,11 @@ static VOID __SendMail(__MAIL_BOX* pMailbox, LPVOID pMessage, DWORD dwPriority)
 	pMailbox->dwCurrMessageNum += 1;
 	pMailbox->dwMessageTail += 1;
 	pMailbox->dwMessageTail %= pMailbox->dwMaxMessageNum;
+	/* Update the max total message number. */
+	if (pMailbox->dwCurrMessageNum > pMailbox->max_total_msg_num)
+	{
+		pMailbox->max_total_msg_num = pMailbox->dwCurrMessageNum;
+	}
 	return;
 }
 
@@ -955,6 +985,7 @@ BOOL MailboxInitialize(__COMMON_OBJECT* pMailboxObj)
 	pMailbox->dwCurrMessageNum = 0;
 	pMailbox->dwMessageHeader = 0;
 	pMailbox->dwMessageTail = 0;
+	pMailbox->max_total_msg_num = 0;
 	pMailbox->lpSendingQueue = pSendingQueue;
 	pMailbox->lpGettingQueue = pGettingQueue;
 	pMailbox->WaitForThisObject = WaitForMailboxObject;

@@ -13,7 +13,7 @@
 //    Lines number              :
 //***********************************************************************/
 
-#include "kapi.h"
+#include "hellox.h"
 #include "stddef.h"
 #include "limits.h"
 #include "ctype.h"
@@ -129,7 +129,7 @@ void strtrim(char * dst,int flag)
 }
 
 //String copy,array bound is guaranteed.
-char* strncpy(char *dest,char *src,unsigned int n)
+char* strncpy(char *dest, const char *src,unsigned int n)
 {
 	char *strRtn=dest;
 	while(n && (*dest++=*src++))
@@ -144,7 +144,7 @@ char* strncpy(char *dest,char *src,unsigned int n)
 } 
 
 //String comparation,array bound is guaranteed.
-int strncmp ( char * s1, char * s2, size_t n)
+int strncmp (const char * s1, const char * s2, size_t n)
 {
   if ( !n )
    return(0);
@@ -621,4 +621,27 @@ char*  strtok(char* string_org, const char* demial)
 	else{
 		return string_org;
 	}
+}
+
+/*
+ * Span the complement of string s2.
+ */
+size_t strcspn(const char* s1, register const char* s2)
+{
+	register const char *p, *spanp;
+	register char c, sc;
+
+	/*
+	 * Stop as soon as we find any character from s2.  Note that there
+	 * must be a NUL in s2; it suffices to stop when we find that, too.
+	 */
+	for (p = s1;;) {
+		c = *p++;
+		spanp = s2;
+		do {
+			if ((sc = *spanp++) == c)
+				return (p - 1 - s1);
+		} while (sc != 0);
+	}
+	/* NOTREACHED */
 }

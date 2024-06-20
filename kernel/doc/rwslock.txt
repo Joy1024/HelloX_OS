@@ -1,0 +1,12 @@
+Read-write spin lock, has meaning of read-write lock but using spin lock instead.
+It's first developed under HelloX to access routing-table in multiple CPU and multiple threads
+environment.
+
+Functions:
+1. Read can enter, if there is no write;
+2. Write can enter, if there is no read;
+3. Write can not enter, if there is read;
+4. Write can not enter, if there is write;
+5. Read can enter, if there is read;
+6. Read can not enter, if there is write.
+

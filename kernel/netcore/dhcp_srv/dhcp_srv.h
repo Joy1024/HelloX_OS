@@ -21,6 +21,7 @@
 #include <netmgr.h>
 #include <lwip/ip_addr.h>
 #include <lwip/sockets.h>
+#include <netcfg.h>
 
 /* Enable DHCP server debugging output. */
 #define DHCP_DEBUG_PRINTF
@@ -36,6 +37,12 @@
 
 /* DHCP Server kernel thread's name. */
 #define DHCP_SERVER_NAME "dhcpd"
+
+/* External database file name to save allocations. */
+#define DHCP_SERVER_DBNAME "c:\\syscfg\\dhcpd.cfg"
+
+/* Default leased time. */
+#define DHCP_SERVER_LEASEDTIME (3600 * 24 * 1)
 
 /* allocated client ip range */
 #ifndef DHCPD_CLIENT_IP_MIN
@@ -209,6 +216,8 @@ typedef struct tag__DHCP_ALLOCATION{
 	/* The owner's hardware address. */
 	uint8_t hwaddr[ETH_MAC_LEN];
 	struct ip_addr ipaddr;
+	/* Leased time in seconds. */
+	unsigned long lease_t;
 }__DHCP_ALLOCATION;
 
 /* 
@@ -219,6 +228,8 @@ typedef struct tag__DHCP_ALLOCATION{
 typedef struct tag__DHCP_INTERFACE {
 	/* interface index. */
 	int if_index;
+	/* interface name. */
+	char if_name[MAX_NETIF_NAME_LENGTH + 1];
 	/* Next one in list. */
 	struct tag__DHCP_INTERFACE* pNext;
 	/* Allocation list head. */

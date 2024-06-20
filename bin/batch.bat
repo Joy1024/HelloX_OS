@@ -3,21 +3,26 @@ copy ..\release\master.dll
 del realinit.bin
 del miniker.bin
 del bootsect
+del newldr.bin
 nasm -f bin ..\arch\x86\miniker.asm -o miniker.bin
 nasm -f bin ..\arch\x86\realinit.asm -o realinit.bin
 nasm -f bin ..\arch\x86\fat32bs.asm -o bootsect
+nasm -f bin ..\arch\x86\newldr.asm -o newldr.bin
 
 del osloadr.bin
 del master.bin
 process -i master.dll -o master.bin
 append -s realinit.bin -a miniker.bin -b 2000 -o image_1.bin
-append -s image_1.bin -a master.bin -b 12000 -o image_2.bin
+append -s image_1.bin -a newldr.bin -b 12000 -o image_2.bin
 ren image_2.bin osloadr.bin
 del image_1.bin
 
 cd ..
 cd ..\bin
 copy ..\kernel\bin\osloadr.bin
+copy ..\kernel\bin\master.bin
+del oskernl.bin
+ren master.bin oskernl.bin
 copy ..\kernel\bin\bootsect
 cd ..\gui\guimaker
 copy ..\release\hcngui.dll
@@ -35,6 +40,7 @@ process -i usragent.dll -o usragent.bin
 copy usragent.bin .\import\
 del .\import\osloadr.bin
 copy osloadr.bin .\import\
+copy oskernl.bin .\import\
 copy bootsect .\import\
 ren .\import\bootsect bootsect.bin
 

@@ -32,7 +32,7 @@
  *     @(#)s_tan.c 1.3 95/01/18
  */
 
-#include "kapi.h"
+#include "hellox.h"
 #include "math.h"
 
 #define zero    0.00000000000000000000e+00 /* 0x00000000, 0x00000000 */

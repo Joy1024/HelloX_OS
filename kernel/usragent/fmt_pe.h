@@ -17,6 +17,12 @@
 #ifndef __FMT_PE__
 #define __FMT_PE__
 
+#include "hellox.h"
+#include "pteb.h"
+
+/* Alignment in byte boundary. */
+#pragma pack(push,1)
+
 // Directory Entries
 #define IMAGE_DIRECTORY_ENTRY_EXPORT          0   // Export Directory
 #define IMAGE_DIRECTORY_ENTRY_IMPORT          1   // Import Directory
@@ -78,8 +84,10 @@ typedef struct _IMAGE_FILE_HEADER
 #define IMAGE_FILE_MACHINE_IA64   0x200
 #define IMAGE_FILE_MACHINE_ARM    0x1C0
 #define IMAGE_FILE_MACHINE_ARM64  0xAA64
+#define IMAGE_FILE_MACHINE_AMD64  0x8664    //x64.
 
 /* File characteristics. */
+#define IMAGE_FILE_RELOCS_STRIPPED   0x0001
 #define IMAGE_FILE_EXECUTABLE_IMAGE  0x0002
 #define IMAGE_FILE_32BIT_MACHINE     0x0100
 #define IMAGE_FILE_SYSTEM            0x1000
@@ -149,6 +157,39 @@ typedef struct _IMAGE_OPTIONAL_HEADER
 	IMAGE_DATA_DIRECTORY DataDirectory[IMAGE_NUMBEROF_DIRECTORY_ENTRIES];
 } IMAGE_OPTIONAL_HEADER32, *PIMAGE_OPTIONAL_HEADER32;
 
+typedef struct __IMAGE_OPTIONAL_HEADER64 {
+	WORD        Magic;
+	BYTE        MajorLinkerVersion;
+	BYTE        MinorLinkerVersion;
+	DWORD       SizeOfCode;
+	DWORD       SizeOfInitializedData;
+	DWORD       SizeOfUninitializedData;
+	DWORD       AddressOfEntryPoint;
+	DWORD       BaseOfCode;
+	ULONGLONG   ImageBase;
+	DWORD       SectionAlignment;
+	DWORD       FileAlignment;
+	WORD        MajorOperatingSystemVersion;
+	WORD        MinorOperatingSystemVersion;
+	WORD        MajorImageVersion;
+	WORD        MinorImageVersion;
+	WORD        MajorSubsystemVersion;
+	WORD        MinorSubsystemVersion;
+	DWORD       Win32VersionValue;
+	DWORD       SizeOfImage;
+	DWORD       SizeOfHeaders;
+	DWORD       CheckSum;
+	WORD        Subsystem;
+	WORD        DllCharacteristics;
+	ULONGLONG   SizeOfStackReserve;
+	ULONGLONG   SizeOfStackCommit;
+	ULONGLONG   SizeOfHeapReserve;
+	ULONGLONG   SizeOfHeapCommit;
+	DWORD       LoaderFlags;
+	DWORD       NumberOfRvaAndSizes;
+	IMAGE_DATA_DIRECTORY DataDirectory[IMAGE_NUMBEROF_DIRECTORY_ENTRIES];
+} IMAGE_OPTIONAL_HEADER64, *PIMAGE_OPTIONAL_HEADER64;
+
 /* Magic value,only PE32 is supported now. */
 #define PE_OPTIONAL_HEADER_MAGIC_PE32PLUS 0x20b
 #define PE_OPTIONAL_HEADER_MAGIC_PE32     0x10b
@@ -159,6 +200,12 @@ typedef struct _IMAGE_NT_HEADERS
 	IMAGE_FILE_HEADER FileHeader;
 	IMAGE_OPTIONAL_HEADER32 OptionalHeader;
 } IMAGE_NT_HEADERS32, *PIMAGE_NT_HEADERS32;
+
+typedef struct _IMAGE_NT_HEADERS64 {
+	DWORD Signature;
+	IMAGE_FILE_HEADER FileHeader;
+	IMAGE_OPTIONAL_HEADER64 OptionalHeader;
+} IMAGE_NT_HEADERS64, *PIMAGE_NT_HEADERS64;
 
 /* PE signature,'PE\0\0'. */
 #define PE_NT_HEADER_SIGNATURE 0x00004550
@@ -205,6 +252,34 @@ typedef struct _IMAGE_SECTION_HEADER
 #define IMAGE_REL_BASED_LOW         0x02
 #define IMAGE_REL_BASED_HIGHLOW     0x03
 #define IMAGE_REL_BASED_HIGHADJ     0x04
+#define IMAGE_REL_BASED_DIR64       0x0A
+
+/* Export table definitions. */
+typedef struct _IMAGE_EXPORT_DIRECTORY {
+	DWORD   Characteristics;
+	DWORD   TimeDateStamp;
+	WORD    MajorVersion;
+	WORD    MinorVersion;
+	DWORD   ModuleName;             //  RVA of the module name string.
+	DWORD   OrdinalBase;
+	DWORD   NumberOfFunctions;
+	DWORD   NumberOfNames;
+	DWORD   AddressOfFunctions;     // RVA from base of image
+	DWORD   AddressOfNames;         // RVA from base of image
+	DWORD   AddressOfNameOrdinals;  // RVA from base of image
+} IMAGE_EXPORT_DIRECTORY, *PIMAGE_EXPORT_DIRECTORY;
+
+/* Import definitions. */
+typedef struct _IMAGE_IMPORT_DESCRIPTOR {
+	union {
+		DWORD   Characteristics;
+		DWORD   OriginalFirstThunk;
+	} DUMMYUNIONNAME;
+	DWORD   TimeDateStamp;
+	DWORD   ForwarderChain;
+	DWORD   Name;
+	DWORD   FirstThunk;
+} IMAGE_IMPORT_DESCRIPTOR, *PIMAGE_IMPORT_DESCRIPTOR;
 
 /* 
  * Maximal PE file header's size. 
@@ -216,5 +291,19 @@ typedef struct _IMAGE_SECTION_HEADER
 
 /* Entry point prototype of PE image. */
 typedef int (*__PE_ENTRY_POINT)(int argc, char* argv[]);
+
+/* Process PE data directories. */
+BOOL ProcessDataDirectory(__MODULE_DESCRIPTOR* module, __PEB* peb,
+	IMAGE_NT_HEADERS* nt_hdr, DWORD base_addr);
+
+/* 64 bits version. */
+BOOL ProcessDataDirectory64(__MODULE_DESCRIPTOR* module, __PEB* peb,
+	IMAGE_NT_HEADERS64* nt_hdr, DWORD base_addr);
+
+/* Bind symbols that depend on this module. */
+BOOL BindDependSymbol(__MODULE_DESCRIPTOR* pModule, __PEB* peb);
+
+/* Restore default alignment. */
+#pragma pack(pop)
 
 #endif //__FMT_PE__

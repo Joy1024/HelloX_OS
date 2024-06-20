@@ -24,3 +24,27 @@ Pending issues:
 4. Race condition may exist in device handler's processing,when a new interrupt
    object is added or removed from interrupt object list;
 5. Interrupt object should be released but not now in DisconnectInterrupt handler;
+6. SetEndOfFile routine may has bug, invoke it after write to file and close the 
+   file, will lead to file system crash. Use 'dir' command in root directory, will
+   display 'can not open directory of c:\';
+7. BUG_ON(mem_fbl.c, 417line) will be trigger when exit from a thread in shell, such
+   as when exit from network command;
+8. tcp/ip thread hang. From the diagnosing information as follows, the root cause
+   is that when there are too many packets that should be re-sent to tcpip thread
+   by itself to process, the mailbox is full and the thread is blocking on the
+   sending queue:
+   [sysdiag_view]kobjshow 23
+   Mailbox: id[3277], max_msg_num[4], curr_msg_num[0], gq_num[0], sq_num[0]
+   Mailbox: id[3267], max_msg_num[4], curr_msg_num[0], gq_num[0], sq_num[0]
+   Mailbox: id[3257], max_msg_num[4], curr_msg_num[0], gq_num[0], sq_num[0]
+   Mailbox: id[3247], max_msg_num[4], curr_msg_num[0], gq_num[0], sq_num[0]
+   Mailbox: id[3233], max_msg_num[4], curr_msg_num[0], gq_num[0], sq_num[0]
+   Mailbox: id[200], max_msg_num[4], curr_msg_num[0], gq_num[1], sq_num[0]
+     1st thread in getting queue: tty_server
+   Mailbox: id[100], max_msg_num[8], curr_msg_num[8], gq_num[0], sq_num[1]
+     1st thread in putting queue: tcpip_thread
+   We just enlarge the mailbox's size to avoid this issue, but it should
+   be erected in the future since the isssue will emerge again when broad
+   packets too much.
+   The mailbox's default size(TCPIP_MBOX_SIZE) is changed to 256 now.
+

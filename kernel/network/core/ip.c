@@ -57,8 +57,8 @@
 #include "lwip/stats.h"
 #include "arch/perf.h"
 
-/* For NAT/DPI support. */
 #include "netcfg.h"
+#include "routmgr/rtmgr.h"
 #include "nat/nat.h"
 #include "dpi/dpimgr.h"
 
@@ -127,7 +127,7 @@ static u16_t ip_id;
  * @param dest the destination IP address for which to find the route
  * @return the netif on which to send to reach dest
  */
-struct netif* ip_route(ip_addr_t *dest)
+struct netif* __ip_route(ip_addr_t *dest)
 {
 	struct netif *netif;
 
@@ -164,6 +164,70 @@ struct netif* ip_route(ip_addr_t *dest)
 	return netif_default;
 }
 
+/*
+ * Returns the out going interface give an IP address.
+ * It invokes the ip_route routine in routing manager,
+ * and just returns the netif, since genif will be returned
+ * by ip_route.
+ */
+struct netif* ip_route(ip_addr_t *dest)
+{
+	__GENERIC_NETIF* pGenif = NULL;
+	struct netif* netif = NULL;
+
+	BUG_ON(NULL == dest);
+	/* Just delegates to ip_route. */
+	pGenif = RoutingManager.ip_route(dest, NULL);
+	if (NULL == pGenif)
+	{
+		/* No route found. */
+		return NULL;
+	}
+	/* Get the according netif. */
+	netif = (struct netif*)pGenif->proto_binding[0].pIfState;
+	BUG_ON(NULL == netif);
+	return netif;
+}
+
+/*
+ * Returns the out going interface give an IP packet, the
+ * incoming interface, and it's dest aaddress. This is the
+ * extension version of ip_route.
+ * It looks up the routing table in PBR manner, and then
+ * looks up the normal ip address based routing table if
+ * PBR routing fail.
+ */
+struct netif* ip_route_ext(struct ip_hdr* ip_hdr, struct netif* netif_in, ip_addr_t *dest)
+{
+	__GENERIC_NETIF* pGenifOut = NULL;
+	__GENERIC_NETIF* pGenifIn = NULL;
+	struct netif* netif = NULL;
+
+	BUG_ON(NULL == dest);
+
+	/* Apply PBR routing first. */
+	if (netif_in)
+	{
+		pGenifIn = netif_in->pGenif;
+	}
+	pGenifOut = RoutingManager.ip_route_pbr(ip_hdr, pGenifIn, dest, NULL);
+	if (NULL == pGenifOut)
+	{
+		/* PBR routing fail, then apply normal routing look up. */
+		pGenifOut = RoutingManager.ip_route(dest, NULL);
+		if (NULL == pGenifOut)
+		{
+			/* No route found. */
+			return NULL;
+		}
+	}
+
+	/* Get the according netif. */
+	netif = (struct netif*)pGenifOut->proto_binding[0].pIfState;
+	BUG_ON(NULL == netif);
+	return netif;
+}
+
 #if IP_FORWARD
 /**
  * Forwards an IP packet. It finds an appropriate route for the
@@ -189,8 +253,12 @@ ip_forward(struct pbuf *p, struct ip_hdr *iphdr, struct netif *inp)
     goto return_noroute;
   }
 
-  /* Find network interface where to forward this IP packet to. */
-  netif = ip_route(&current_iphdr_dest);
+  /* 
+   * Find network interface where to forward this IP packet to. 
+   * Use extension manner of ip routing, which PBR will be applied
+   * prefer.
+   */
+  netif = ip_route_ext(iphdr, inp, &current_iphdr_dest);
   if (netif == NULL) {
     LWIP_DEBUGF(IP_DEBUG, ("ip_forward: no forwarding route for %"U16_F".%"U16_F".%"U16_F".%"U16_F" found\n",
       ip4_addr1_16(&current_iphdr_dest), ip4_addr2_16(&current_iphdr_dest),

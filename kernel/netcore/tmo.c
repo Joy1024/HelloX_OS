@@ -65,7 +65,8 @@ void _hx_release_network_tmo(__network_timer_object* pTimerObject)
 	{
 		ReleaseMutex(timer_object_mutex);
 		__LOG("[%s]timer[0x%X] maybe destroyed already.\r\n", 
-			pTimerObject, __func__);
+			__func__,
+			pTimerObject);
 		return;
 	}
 	BUG_ON(pTimerObject->dwObjectSignature != KERNEL_OBJECT_SIGNATURE);

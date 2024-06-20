@@ -109,7 +109,8 @@ void TcpTranslation(__EASY_NAT_ENTRY* pEntry, struct tcp_hdr* pTcpHdr, __PACKET_
 	 * So just set the NAT entry to timeout to be released
 	 * as soon as possible.
 	 */
-	if ((pEntry->tp_header.tcp_flags_in & TCP_FIN) && (pEntry->tp_header.tcp_flags_out & TCP_FIN))
+	if ((pEntry->tp_header.tcp_flags_in & TCP_FIN) && 
+		(pEntry->tp_header.tcp_flags_out & TCP_FIN))
 	{
 		/* Set the NAT entry as timeout,to lead the purge ASAP. */
 		pEntry->ms = NAT_ENTRY_TIMEOUT_TCP;

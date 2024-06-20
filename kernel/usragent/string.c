@@ -66,7 +66,6 @@ char * strcat(
 	while (*cp++ = *src++);       /* Copy src to end of dst */
 
 	return(dst);                  /* return dst */
-
 }
 
 void strtrim(char * dst, int flag)
@@ -211,7 +210,6 @@ int ffs(int x)
 #endif
 
 char * strrchr(const char * str, int ch)
-
 {
 	char *p = (char *)str;
 	while (*str) str++;
@@ -397,4 +395,45 @@ char*  strtok(char* string_org, const char* demial)
 	else {
 		return string_org;
 	}
+}
+
+/* 
+ * Quick search a string in the given string 
+ * array. Binary search algorithm will be used
+ * here, and can not handle multiple results
+ * scenario up to date.
+ */
+int str_qsearch(const char* src,
+	const char* array[], int max_length,
+	size_t array_sz)
+{
+	int base, top, mid;
+	int cmp_result = 0;
+
+	if (0 == array_sz)
+	{
+		return -1;
+	}
+	base = 0;
+	top = array_sz - 1;
+	while (base <= top)
+	{
+		mid = (base + top) / 2;
+		cmp_result = strncmp(src, array[mid], max_length);
+		if (0 == cmp_result)
+		{
+			return mid;
+		}
+		if (cmp_result > 0)
+		{
+			/* src > array[mid]. */
+			base = mid + 1;
+		}
+		else {
+			top = mid - 1;
+		}
+	}
+
+	/* Can not find the matching string. */
+	return -1;
 }

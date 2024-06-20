@@ -88,7 +88,7 @@
  *     |                   |
  *     |  DEVICE MAPED I/O |
  *     |                   |
- *     | ----------------- |<---- 0xC0000000
+ *     | ----------------- |<---- KMEM_USERSTACK_END
  *       
  *       ~~~~~~~~~~~~~~~~~ 
  *     |                   |
@@ -182,7 +182,7 @@
  *     |                   |
  *     |  DEVICE MAPED I/O |
  *     |                   |
- *     | ----------------- |<---- 0xC0000000(KMEM_USERSPACE_END/KMEM_IOMAP_START)
+ *     | ----------------- |<---- KMEM_USERSTACK_END(KMEM_USERSPACE_END/KMEM_IOMAP_START)
  *     |                   |  
  *     |                   |
  *     |                   |
@@ -252,8 +252,7 @@
  *  length is 2G in 32 bits.More detailed layout of
  *  user space as follows:
  *
- *     | ----------------- |<---- 0xC0000000(KMEM_USERSPACE_END/KMEM_IOMAP_START/
- *     |                   |                 KMEM_USERSTACK_END)
+ *     | ----------------- |<---- KMEM_USERSTACK_END(KMEM_USERSPACE_END/KMEM_IOMAP_START)
  *     |                   |
  *     |  USER STACK       |
  *     |                   |
@@ -321,11 +320,40 @@
 /* Start logical address of user application. */
 #define KMEM_USERAPP_START KMEM_USERSPACE_START
 
-/* Start logical address of user agent. */
+/* 
+ * Start logical address of user agent. 
+ * User agent is a common module which is loaded
+ * into memory by kernel, when a new process
+ * is created, it actually a program loader.
+ * The user agent is loaded into the start address
+ * of user space(user app), and spans 
+ * KMEM_USERAGENT_LENGTH block. This block of memory
+ * will be mapped to all processes.
+ */
 #define KMEM_USERAGENT_START KMEM_USERAPP_START
 
 /* Length of user agent module. */
-#define KMEM_USERAGENT_LENGTH (4096 * 8)
+#define KMEM_USERAGENT_LENGTH (4096 * 8 * 8)
+
+/* 
+ * Start address of Process Environment Block(PEB).
+ * The PEB is per-process and will be allocated
+ * by user agent to hold process related data
+ * structures.
+ * The detail layout of PEB will be defined in 
+ * user agent module.
+ */
+#define KMEM_PEB_START (KMEM_USERAGENT_START + \
+	KMEM_USERAGENT_LENGTH)
+
+/* PEB's length. */
+#define KMEM_PEB_LENGTH (4096 * 16)
+
+/*
+ * Start address of user's image, i.e, 
+ * the executable PE file's loading address.
+ */
+#define KMEM_IMAGE_START 0x50000000
 
 /* End logical address of user application. */
 #define KMEM_USERAPP_END 0x60000000
@@ -345,8 +373,18 @@
 /* Start logical address of user stack. */
 #define KMEM_USERSTACK_START KMEM_USERLIB_END
 
-/* End logical address of user stack. */
-#define KMEM_USERSTACK_END 0xC0000000
+/* 
+ * End logical address of user stack. 
+ * This value is defined to 0xC0000000 at
+ * very begining, it could fit most hardware
+ * platforms, until a new version hardware
+ * is encountered. In this platfrom, devices
+ * I/O spaces are mapped into 0xB0000000 to
+ * the end of logical space, so we redefined
+ * the value to 0xB0000000.
+ * Other values maybe defined in the future.
+ */
+#define KMEM_USERSTACK_END 0xB0000000
 
 /* End logical address of user space. */
 #define KMEM_USERSPACE_END KMEM_USERSTACK_END
@@ -358,8 +396,12 @@
 /* Start address of device's I/O maped memory. */
 #define KMEM_IOMAP_START KMEM_USERSPACE_END
 
-/* Total length of IO maped space. */
-#define KMEM_IOMAP_LENGTH 0x40000000
+/* 
+ * Total length of IO maped space. 
+ * Must be calculated using the formula, since the start addr
+ * of device I/O mapped memory may changed.
+ */
+#define KMEM_IOMAP_LENGTH (0x00000000 - KMEM_IOMAP_START)
 
 /* Check if one address is in IO maped space. */
 #define KMEM_IN_IOMAP_SPACE(addr) ((unsigned long)addr > KMEM_IOMAP_START)

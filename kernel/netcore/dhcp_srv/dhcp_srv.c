@@ -36,11 +36,21 @@
  *    will be invoked in this thread;
  * 9. All IP address asigned to client are recorded in allocation list of each
  *    dhcp interface object;
+ * 10. DHCP allocations is denote the data structure of allocation information,
+ *    such as the IP address, client's MAC address, leased time, and other related
+ *    information;
+ * 11. All dhcp allocations are saved into a file named dhcpd.cfg under c:\syscfg
+ *    directory, and will be loaded into memory when dhcp server start, so
+ *    the history allocation could be reserved;
+ * 12. The allocations format in external file is described in file jsnfmt.txt,
+ *    it's actually a json file. You can change the allocation manually;
+ * 13. cJSON is used to access the external database file;
  */
 
 #include <stdio.h>
 #include <stdint.h>
 #include <KAPI.H>
+#include <cJSON/cJSON.h>
 #include <lwip/sockets.h>
 
 #include "hx_inet.h"
@@ -58,12 +68,200 @@ static __DHCP_INTERFACE* if_list_head = NULL;
 static HANDLE if_mtx = NULL;
 /* Index of dhcp server enabled interface. */
 static uint8_t if_index = 0;
+/* Handle of json object that hold all allocations. */
+static cJSON* alloc_db = NULL;
+/* External file of saving allocations. */
+static HANDLE db_file = NULL;
 
 /*
  * Add one interface to DHCP server enabled list.
  * Server will listen on this interface after added.
  */
 static BOOL AddOneInterface(char* name);
+
+/* Load one dhcp allocation from storage object. */
+static BOOL __load_alloc_entry(cJSON* alloc_entry,
+	__DHCP_ALLOCATION* pAlloc)
+{
+	cJSON* child_item = NULL;
+	char* value = NULL;
+	BOOL bResult = FALSE;
+	unsigned int mac_addr[6];
+
+	/* Load ip addr. */
+	child_item = cJSON_GetObjectItem(alloc_entry, "ip_addr");
+	if (NULL == child_item)
+	{
+		goto __TERMINAL;
+	}
+	value = cJSON_GetStringValue(child_item);
+	if (NULL == value)
+	{
+		goto __TERMINAL;
+	}
+	inet_aton(value, &pAlloc->ipaddr);
+
+	/* Load mac-address. */
+	child_item = cJSON_GetObjectItem(alloc_entry, "mac_addr");
+	if (NULL == child_item)
+	{
+		goto __TERMINAL;
+	}
+	value = cJSON_GetStringValue(child_item);
+	if (NULL == value)
+	{
+		goto __TERMINAL;
+	}
+	sscanf(value, "%02x-%02x-%02x-%02x-%02x-%02x",
+		&mac_addr[0], &mac_addr[1], &mac_addr[2],
+		&mac_addr[3], &mac_addr[4], &mac_addr[5]);
+	pAlloc->hwaddr[0] = (unsigned char)mac_addr[0];
+	pAlloc->hwaddr[1] = (unsigned char)mac_addr[1];
+	pAlloc->hwaddr[2] = (unsigned char)mac_addr[2];
+	pAlloc->hwaddr[3] = (unsigned char)mac_addr[3];
+	pAlloc->hwaddr[4] = (unsigned char)mac_addr[4];
+	pAlloc->hwaddr[5] = (unsigned char)mac_addr[5];
+
+	/* Load leased time. */
+	child_item = cJSON_GetObjectItem(alloc_entry, "lease_t");
+	if (NULL == child_item)
+	{
+		goto __TERMINAL;
+	}
+	value = cJSON_GetStringValue(child_item);
+	if (NULL == value)
+	{
+		goto __TERMINAL;
+	}
+	pAlloc->lease_t = atoi(value);
+
+	bResult = TRUE;
+
+__TERMINAL:
+	return bResult;
+}
+
+/*
+ * Local helper routine, load saved dhcp
+ * allocations from external database.
+ */
+static void __load_saved_alloc(const char* netif_name, __DHCP_INTERFACE* dhcp_if)
+{
+	cJSON* alloc_table = NULL;
+	int array_sz = 0;
+	cJSON* alloc_entry = NULL;
+	__DHCP_ALLOCATION* pAlloc = NULL;
+
+	if ((NULL == alloc_db) || (NULL == db_file))
+	{
+		goto __TERMINAL;
+	}
+	/* Retrieve the allocation table of the genif. */
+	alloc_table = cJSON_GetObjectItem(alloc_db, netif_name);
+	if (NULL == alloc_table)
+	{
+		/* No alloc table yet, create one. */
+		alloc_table = cJSON_CreateArray();
+		if (NULL == alloc_table)
+		{
+			goto __TERMINAL;
+		}
+		cJSON_AddItemToObject(alloc_db, netif_name, alloc_table);
+		goto __TERMINAL;
+	}
+
+	/* Load allocations from array. */
+	array_sz = cJSON_GetArraySize(alloc_table);
+	if (0 == array_sz)
+	{
+		/* No entry in array. */
+		goto __TERMINAL;
+	}
+	for (int i = 0; i < array_sz; i++)
+	{
+		alloc_entry = cJSON_GetArrayItem(alloc_table, i);
+		if (NULL == alloc_entry)
+		{
+			/* Exception case, just give up. */
+			goto __TERMINAL;
+		}
+		/* Create allocation to hold. */
+		pAlloc = (__DHCP_ALLOCATION*)_hx_malloc(sizeof(__DHCP_ALLOCATION));
+		if (NULL == pAlloc)
+		{
+			goto __TERMINAL;
+		}
+		/*
+		 * Now fetch the ip/mac/lt from item,
+		 * and insert into allocation list of the genif.
+		 */
+		if (!__load_alloc_entry(alloc_entry, pAlloc))
+		{
+			goto __TERMINAL;
+		}
+		pAlloc->pNext = dhcp_if->alloc_head.pNext;
+		pAlloc->pPrev = &dhcp_if->alloc_head;
+		dhcp_if->alloc_head.pNext->pPrev = pAlloc;
+		dhcp_if->alloc_head.pNext = pAlloc;
+		/* Reset the pointer since it's used. */
+		pAlloc = NULL; 
+	}
+
+__TERMINAL:
+	if (pAlloc)
+	{
+		_hx_free(pAlloc);
+	}
+	return;
+}
+
+/* Save allocation to external database. */
+static void __save_alloc(__DHCP_INTERFACE* pInterface, __DHCP_ALLOCATION* pAlloc)
+{
+	cJSON* alloc_table = NULL;
+	cJSON* alloc_entry = NULL;
+	char* table_buff = NULL;
+	char lease_str[32];
+	unsigned long offset = 0;
+
+	if ((NULL == alloc_db) || (NULL == db_file))
+	{
+		goto __TERMINAL;
+	}
+	/* Get allocation array. */
+	alloc_table = cJSON_GetObjectItem(alloc_db, pInterface->if_name);
+	if (NULL == alloc_table)
+	{
+		goto __TERMINAL;
+	}
+	alloc_entry = cJSON_CreateObject();
+	if (NULL == alloc_entry)
+	{
+		goto __TERMINAL;
+	}
+	cJSON_AddStringToObject(alloc_entry, "ip_addr", 
+		inet_ntoa(pAlloc->ipaddr));
+	cJSON_AddStringToObject(alloc_entry, "mac_addr", 
+		ethmac_ntoa(pAlloc->hwaddr));
+	cJSON_AddStringToObject(alloc_entry, "lease_t", 
+		itoa(pAlloc->lease_t, lease_str, 10));
+	cJSON_AddItemToArray(alloc_table, alloc_entry);
+
+	/* Save to external file. */
+	table_buff = cJSON_Print(alloc_db);
+	if (table_buff)
+	{
+		SetFilePointer(db_file, &offset, NULL, FILE_FROM_BEGIN);
+		WriteFile(db_file, strlen(table_buff), table_buff, NULL);
+	}
+
+__TERMINAL:
+	if (table_buff)
+	{
+		cJSON_free(table_buff);
+	}
+	return;
+}
 
 /* Check if an IP address is used. */
 static BOOL IpAddrIsUsed(__DHCP_INTERFACE* pInt, struct ip_addr* pAddr)
@@ -138,11 +336,15 @@ static BOOL AssignIpAddrTo(__DHCP_INTERFACE* pInt,
 	}
 	pAlloc->ipaddr.addr = pAddr->addr;
 	memcpy(pAlloc->hwaddr, pMac, sizeof(pAlloc->hwaddr));
+	pAlloc->lease_t = DHCP_SERVER_LEASEDTIME;
 	/* Save to dhcp interface's allocation list. */
 	pAlloc->pNext = pInt->alloc_head.pNext;
 	pAlloc->pPrev = &pInt->alloc_head;
 	pInt->alloc_head.pNext->pPrev = pAlloc;
 	pInt->alloc_head.pNext = pAlloc;
+
+	/* Save the new allocation into external database. */
+	__save_alloc(pInt, pAlloc);
 
 	/* OK. */
 	bResult = TRUE;
@@ -259,10 +461,12 @@ void ShowDhcpAlloc()
 		pAlloc = pDhcpInt->alloc_head.pNext;
 		while (pAlloc != &pDhcpInt->alloc_head)
 		{
-			_hx_printf("  genif[%d]: MAC[%s] -- IP[%s]\r\n",
+			_hx_printf("  genif[%d](%s): MAC[%s] - IP[%s] - lt[%d]\r\n",
 				pDhcpInt->genif_index,
+				pDhcpInt->if_name,
 				ethmac_ntoa(pAlloc->hwaddr),
-				inet_ntoa(pAlloc->ipaddr.addr));
+				inet_ntoa(pAlloc->ipaddr.addr),
+				pAlloc->lease_t);
 			pAlloc = pAlloc->pNext;
 		}
 		pDhcpInt = pDhcpInt->pNext;
@@ -426,7 +630,11 @@ static int dhcp_msg_handler(
 		*dhcp_opt++ = DHCPD_SERVER_IPADDR2;
 		*dhcp_opt++ = DHCPD_SERVER_IPADDR3;
 
-		// DHCP_OPTION_LEASE_TIME
+		/*
+		 * DHCP_OPTION_LEASE_TIME, default value
+		 * is 24 hours, which is defined in
+		 * DHCP_SERVER_LEASEDTIME macro,can be changed.
+		 */
 		*dhcp_opt++ = DHCP_OPTION_LEASE_TIME;
 		*dhcp_opt++ = 4;
 		*dhcp_opt++ = 0x00;
@@ -572,8 +780,9 @@ static int dhcp_msg_handler(
 		if (!GetAssignedIpAddr(pInt, &msg->chaddr[0], &addr))
 		{
 			/* Client may response to other dhcp server. */
-			_hx_printf("No IP assigned to host[%s] but request received.\r\n",
-				ethmac_ntoa(&msg->chaddr[0]));
+			_hx_printf("No IP assigned to host[%s] but request received[if:%s].\r\n",
+				ethmac_ntoa(&msg->chaddr[0]),
+				pInt->if_name);
 			*dhcp_opt++ = DHCP_OPTION_MESSAGE_TYPE;
 			*dhcp_opt++ = DHCP_OPTION_MESSAGE_TYPE_LEN;
 			*dhcp_opt++ = DHCP_NAK;
@@ -650,6 +859,7 @@ static int __GetPreconfigedGenif(char* genif_name, int genif_num)
 	if (NULL == hCfgProfile)
 	{
 		_hx_printf("[%s]could not get config profile\r\n", __func__);
+		goto __TERMINAL;
 	}
 
 	/* Retrieve key-value and show it. */
@@ -705,7 +915,10 @@ static int __GetPreconfigedGenif(char* genif_name, int genif_num)
 	}
 
 __TERMINAL:
-	SystemConfigManager.ReleaseConfigProfile(hCfgProfile);
+	if (hCfgProfile)
+	{
+		SystemConfigManager.ReleaseConfigProfile(hCfgProfile);
+	}
 	return if_num;
 }
 
@@ -719,7 +932,7 @@ __TERMINAL:
  */
 static BOOL add_preconfig_interface()
 {
-#if (!NET_PRECONFIG_ENABLE)
+#if (!NET_PRECONFIG_ENABLE_DHCPD)
 	char genif_name[6][GENIF_NAME_LENGTH];
 	int if_num = 0;
 
@@ -763,8 +976,86 @@ static BOOL add_preconfig_interface()
 			__func__, DHCPD_ENABLED_GENIF_4);
 	}
 #endif
+#if defined(DHCPD_ENABLED_GENIF_5)
+	if (AddOneInterface(DHCPD_ENABLED_GENIF_5))
+	{
+		__LOG("[%s]enable dhcp server on genif[%s].\r\n",
+			__func__, DHCPD_ENABLED_GENIF_5);
+	}
+#endif
 	return TRUE;
 #endif
+}
+
+/* 
+ * Local helper to load external allocation database,
+ * actually a data file, into memory and parse it
+ * as json object, to record the dhcp allocations.
+ */
+static BOOL __load_alloc_db()
+{
+	BOOL bResult = FALSE;
+	int file_sz = 0;
+	char* file_buff = NULL;
+
+	/* 
+	 * Load saved dhcp allocations. 
+	 * Sleep a short while to wait file system ready,
+	 * since this thread is scheduled to another CPU
+	 * that different with the one FS run.
+	 */
+	Sleep(1000);
+	db_file = CreateFile(DHCP_SERVER_DBNAME, 
+		FILE_ACCESS_READWRITE | FILE_OPEN_ALWAYS,
+		0, NULL);
+	if (NULL == db_file)
+	{
+		_hx_printf("[%s]open database[%s] fail.\r\n", __func__,
+			DHCP_SERVER_DBNAME);
+		goto __TERMINAL;
+	}
+	/*
+	 * Load the whole file into memory, since the
+	 * dhcp server is a lite one for home routers and there
+	 * should not too many allocations.
+	 */
+	file_sz = GetFileSize(db_file, NULL);
+	if (0 == file_sz)
+	{
+		/* File is newly created, no history allocations. */
+		alloc_db = cJSON_CreateObject();
+		bResult = alloc_db ? TRUE : FALSE;
+		goto __TERMINAL;
+	}
+	file_buff = (char*)_hx_malloc(file_sz);
+	if (NULL == file_buff)
+	{
+		_hx_printf("[%s]out of memory.\r\n", __func__);
+		goto __TERMINAL;
+	}
+	memset(file_buff, 0, file_sz);
+	if (!ReadFile(db_file, file_sz, file_buff, NULL))
+	{
+		_hx_printf("[%s]can not read file.\r\n", __func__);
+		goto __TERMINAL;
+	}
+	/* Now format the database as json object. */
+	alloc_db = cJSON_Parse(file_buff);
+	if (alloc_db == NULL)
+	{
+		_hx_printf("[%s]database file may cruption.\r\n", __func__);
+		goto __TERMINAL;
+	}
+
+	/* Load and parse OK. */
+	bResult = TRUE;
+
+__TERMINAL:
+	if (file_buff)
+	{
+		_hx_free(file_buff);
+	}
+	return bResult;
 }
 
 /* Main thread of DHCP server. */
@@ -780,6 +1071,13 @@ static DWORD dhcpd_thread_entry(void *parameter)
 	struct timeval tv;
 	fd_set readset;
 	int sel_ret = 0;
+
+	/* Load history allocations. */
+	if (!__load_alloc_db())
+	{
+		_hx_printf("[%s]can not load history allocations.\r\n",
+			__func__);
+	}
 
 	/* 
 	 * Add pre-configured dhcp server enabled 
@@ -882,6 +1180,16 @@ static DWORD dhcpd_thread_entry(void *parameter)
 			pInt = pInt->pNext;
 		}
 		ReleaseMutex(if_mtx);
+	}
+
+	/* Release global resources that used. */
+	if (db_file)
+	{
+		CloseFile(db_file);
+	}
+	if (alloc_db)
+	{
+		cJSON_Delete(alloc_db);
 	}
 	return 0;
 }
@@ -1026,10 +1334,19 @@ static __DHCP_INTERFACE* InitDhcpIf(char* netif_name)
 		goto __TERMINAL;
 	}
 
+	/*
+	* Load saved allocations for this interface.
+	* Allocations are saved into a external database,
+	* and should restore it after service reboot.
+	*/
+	dhcp_if->alloc_head.pNext = dhcp_if->alloc_head.pPrev = &dhcp_if->alloc_head;
+	__load_saved_alloc(netif_name, dhcp_if);
+
 	/* Initializes the interface object. */
 	dhcp_if->genif_index = genif_index;
+	/* Save the interface's name. */
+	strncpy(dhcp_if->if_name, netif_name, MAX_NETIF_NAME_LENGTH);
 	dhcp_if->sock = -1; /* Create later. */
-	dhcp_if->alloc_head.pNext = dhcp_if->alloc_head.pPrev = &dhcp_if->alloc_head;
 	dhcp_if->host_start = 2;
 	dhcp_if->net_part1 = DHCPD_SERVER_IPADDR0;
 	dhcp_if->net_part2 = DHCPD_SERVER_IPADDR1;
@@ -1070,6 +1387,14 @@ static BOOL StartDhcpIf(__DHCP_INTERFACE* pIf)
 	int optval = 1;
 	struct sockaddr_in server_addr;
 	__COMMON_NETWORK_ADDRESS comm_addr[3];
+
+	/*
+	 * Release DHCP configuration on this genif
+	 * and disable DHCP on the genif, since
+	 * static address is used.
+	 */
+	NetworkManager.SetGenifConfig(pIf->genif_index, GENIF_CONFIG_DHCP, 2, NULL);
+	NetworkManager.SetGenifConfig(pIf->genif_index, GENIF_CONFIG_DHCP, 1, NULL);
 
 	/* Configure ip address on the genif. */
 	BUG_ON(NULL == pIf);

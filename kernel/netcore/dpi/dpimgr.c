@@ -284,7 +284,7 @@ static BOOL _dpiSendRaw(ip_addr_t* src_addr, ip_addr_t* dst_addr,
 	}
 
 	/* Everything is OK, send the pbuf. */
-	bResult = (tcpip_output(p, NULL) == ERR_OK);
+	bResult = (tcpip_output(p, NULL, TRUE, NULL, NULL, 0, 0, 0) == ERR_OK);
 
 __TERMINAL:
 	return bResult;

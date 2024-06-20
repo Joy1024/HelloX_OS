@@ -21,10 +21,26 @@
 /* Base name of fat32 file system. */
 #define FAT32_DEVICE_NAME_BASE   "\\\\.\\FAT32_DEV0"
 /* File object's name, as a device. */
-#define FAT32_FILE_NAME_BASE     "\\\\.\\FAT_FILE0"
+#define FAT32_FILE_NAME_BASE     "\\\\.\\FAT_FILE%d"
 
 /* Only support 512 sector size. */
 #define SECTOR_SIZE 512
+
+/* Errors FAT32 can raise. */
+/* Invalid file name. */
+#define FAT32_ERROR_INVALIDNAME     (1 << 0)
+/* No dir entry found. */
+#define FAT32_ERROR_NODIRENTRY      (1 << 1)
+/* Out of memory. */
+#define FAT32_ERROR_OUTOFMEMORY     (1 << 2)
+/* Invalid cluster number. */
+#define FAT32_ERROR_CLUSTERNUM      (1 << 3)
+/* Read sector error. */
+#define FAT32_ERROR_LOADSECTOR      (1 << 4)
+/* Write sector error. */
+#define FAT32_ERROR_STORESECTOR     (1 << 5)
+/* Create file dev fail. */
+#define FAT32_ERROR_FILEDEVICE      (1 << 6)
 
 /* Entry point for FAT32 driver. */
 BOOL FatDriverEntry(__DRIVER_OBJECT* lpDriverObject);
@@ -97,8 +113,13 @@ typedef struct FAT32_LONGENTRY
 }__FAT32_LONGENTRY;
 #pragma pack(pop)
 
-/* Short entry filename's length. */
-#define  FAT32_SHORTDIR_FILENAME_LEN   11
+/* 
+ * Short entry filename's length, 
+ * include the maximal file name 8 bytes,
+ * one dot, and at most 3 bytes of
+ * file extension.
+ */
+#define  FAT32_SHORTDIR_FILENAME_LEN   12
 /* Prefix name length. */
 #define  FAT32_SHORTDIR_PREFIX_LEN     6
 /* Long dir entry filename's length. */
@@ -170,7 +191,7 @@ typedef struct FAT32_FS{
 	WORD             wReservedSector;            //Reserved sector number.
 	WORD             wFatInfoSector;             //FAT information sector number.
 	DWORD            dwBytePerSector;            //Byte number per sector.
-	DWORD            dwPartitionSatrt;           //Partition start sector
+	//DWORD            dwPartitionSatrt;           //Partition start sector
 	DWORD            dwClusterSize;              //Byte number of one cluster.
 	DWORD            dwDataSectorStart;          //Start sector number of data.
 	DWORD            dwRootDirClusStart;         //Start cluster number of root dir.
@@ -248,13 +269,15 @@ BOOL  GetShortEntry(__FAT32_FS* pFat32Fs,
 	CHAR* pFileName,
 	__FAT32_SHORTENTRY* pShortEntry,
 	DWORD* pDirClus,
-	DWORD* pDirOffset);
+	DWORD* pDirOffset,
+	unsigned long* error_ptr);
 /* Obtain the directory entry of a full name. */
 BOOL GetDirEntry(__FAT32_FS* pFat32Fs,
 	CHAR* pFullName,
 	__FAT32_SHORTENTRY* pShortEntry,
 	DWORD* pDirClus,
-	DWORD* pDirOffset);
+	DWORD* pDirOffset,
+	unsigned long* error_ptr);
 /* Create a new directory. */
 BOOL CreateFatDir(__FAT32_FS* pFat32Fs, DWORD dwStartCluster, 
 	CHAR* pszDirName, 

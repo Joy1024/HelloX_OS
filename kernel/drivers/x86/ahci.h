@@ -35,6 +35,15 @@
  */
 #define AHCI_BG_THREAD_NAME "ahci_bg"
 
+/*
+ * AHCI background thread's priority.
+ * Many other kernel threads depend on the
+ * ahci storage, so the thread must run
+ * before others, to finish AHCI initialization,
+ * we use CRITICAL as it's priority level.
+ */
+#define AHCI_BG_THREAD_PRIORITY PRIORITY_LEVEL_CRITICAL_4
+
 /* partition name base. */
 #define ATA_PARTITION_NAME_BASE "\\\\.\\ATAPART0"
 

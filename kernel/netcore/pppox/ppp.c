@@ -112,6 +112,7 @@
 #include "lwip/snmp.h"
 
 #include <string.h>
+#include "genifpp.h"
 
 /*************************/
 /*** LOCAL DEFINITIONS ***/
@@ -1398,13 +1399,13 @@ sifup(int pd)
     PPPDEBUG(LOG_WARNING, ("sifup[%d]: bad parms\n", pd));
   } else {
     netif_remove(&pc->netif);
+	pc->netif.pGenif = NULL;
     if (netif_add(&pc->netif, &pc->addrs.our_ipaddr, &pc->addrs.netmask,
-                  //&pc->addrs.his_ipaddr, (void *)(size_t)pd, pppifNetifInit, ip_input)) {
-				  /* 
-				   * Use tcpip_input instead of ip_input,since we put PPP/PPPoX into
-				   * dedicated kernel thread,under HelloX.
-				   */
-				  &pc->addrs.his_ipaddr, (void *)(size_t)pd, pppifNetifInit, tcpip_input)) {
+		&pc->addrs.his_ipaddr, (void *)(size_t)pd, pppifNetifInit, general_ip_input))
+	{
+	  /* Init the corresponding shadow genif. */
+	  __genif_pp_init(&pc->netif, &pc->addrs.our_ipaddr, &pc->addrs.netmask);
+	  /* Pull netif up. */
       netif_set_up(&pc->netif);
       pc->if_up = 1;
       pc->errCode = PPPERR_NONE;
@@ -2103,5 +2104,31 @@ ppp_set_netif_linkcallback(int pd, netif_status_callback_fn link_callback)
   netif_set_link_callback(&pppControl[pd].netif, link_callback); 
 }
 #endif /* LWIP_NETIF_LINK_CALLBACK */
+
+/* 
+ * Helper routine to dump out ppp/pppoe 
+ * session's information, used to debugging.
+ */
+void show_ppp_session(int session_id)
+{
+	PPPControl* pc = NULL;
+	struct pppoe_softc* sc = NULL;
+
+	BUG_ON(session_id > NUM_PPP);
+	pc = &pppControl[session_id];
+
+	/* Show ppp session info. */
+	_hx_printf("    ppp open flag: %d\r\n", pc->openFlag);
+	_hx_printf("    ppp err code: %d\r\n", pc->errCode);
+
+	/* Show pppoe session info, if exist. */
+	sc = pc->pppoe_sc;
+	if (sc)
+	{
+		_hx_printf("    pppoe session state: %d\r\n", sc->sc_state);
+		_hx_printf("    pppoe padi retried: %d\r\n", sc->sc_padi_retried);
+		_hx_printf("    pppoe padr retried: %d\r\n", sc->sc_padr_retried);
+	}
+}
 
 #endif /* PPP_SUPPORT */

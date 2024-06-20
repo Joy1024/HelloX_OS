@@ -43,8 +43,8 @@ int strcmp(const char* src,const char* dst);
 int strlen(const char* s);
 
 //Array bound guaranteed string operations.
-char* strncpy(char *dest,char *src,unsigned int n);
-int strncmp ( char * s1, char * s2, size_t n);
+char* strncpy(char *dest,const char *src,unsigned int n);
+int strncmp ( const char * s1, const char * s2, size_t n);
 
 //Flags to control the trimming.
 #define TRIM_LEFT    0x1
@@ -59,5 +59,10 @@ char*  strtok(char* string_org, const char* demial);
 
 //Find the first bit in a given integer.
 int ffs(int x);
+
+/*
+ * Span the complement of string s2.
+ */
+size_t strcspn(const char* s1, register const char* s2);
 
 #endif //string.h

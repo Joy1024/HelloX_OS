@@ -1,0 +1,177 @@
+1. Bug may exist in sa.c file, revised as following:
+			/* Bug in original code. */
+			//table->last == entry->prev;
+			table->last = entry->prev;
+
+2. SAD_ENTRY and EMPTY_SAD_ENTRY macros are commented off in sa.h;
+3. ROTATE function invoked in sha/md5 is defined as ROTATE_LEFT in ipsec.h, comment
+   off '//#undef ROTATE' clause in md5.c and sha1.c file;
+4. IPSEC_MTU is assumed as 1500, defined in ipsec.h, and included in esp.c;
+
+Issue:
+1. md5.c file exist in pppox and ipsec, conflict when linking, so exclude pppox/md5.c
+   file since it's not used; -- solved;
+
+Progress@20220616:
+1. Embedded ipsec source repository is ported to hellox and pass the compiling;
+
+Progress@20220716:
+1. ipsec command entry implemented and linked to shell;
+2. ipsec subcommand map defined to locate subcommand;
+3. Sub command is located success under ipsec command;
+4. MD5 test OK, and the testing framework is established;
+5. DES testing launched, but with error occur;
+6. Issue maybe caused by ROTATE macro, defined in ipsec.h. The ROTATE in md5/sha/des are different;
+7. SHA-1 has pending issue, lead by ROTATE macro, in _sha1.c file;
+
+Progress@20220723:
+8. Util testing failed, for the reason of ctype.h/ctype.c source code is unusable, should revise them; --OK
+9. ctype.h/ctype.c are saved to wincode/ctype directory, modify them and replace counterparts in hellox; --OK
+10. ESP test result: decapsulate success; encapsulate success @ first time, but failure after that;
+    --Solved, caused by sequence number in ESP header, the sn is increased in SA but without changed in
+	  embedded testing packet;
+11. AH test result: success at first time; failure after first time;
+    --Solved, caused by the global sequence number(ipsec_ah_lastSeq), which is updated in ipsec_ah_check
+	  routine. Should consider if this global number is suitable to move into SA(NO need);
+
+NEXT@20220815:
+1. Function code may work after rough review and unitest;--OK
+2. Read ipsecdev.c file under embedded IPSec source code, to find how to process
+   input and output of IPSec packet;--OK
+3. Implement the IPSec VTI by refering ipsec_dev, but without SPD processing step;
+4. Make IPSec main function work in one thread, then modify to multiple threads after
+   one thread work;
+5. Testing IPSec VTI with Linux OS, manually set up SA;
+6. SA management code may need enhancement, since current's implementation does not consider SMP
+   and multiple thread; SPD mechanism and management may also need revise;
+
+NEXT@20220904:
+1. Implement SA manager code, fulfill the SA add function to replace the static defining
+   of SA in uni-test code; --OK
+2. Use SA in list to do uni-test;--OK
+
+Progress@20220918:
+1. VTI related members(vti_source,destination...) are put into genif's definition;
+2. VTI added OK, could see it by using showgif, iflist, but can not ping it;
+3. IPSec VTI tunnel schema implemented, include add, set(to be), del(to be);
+4. GRE VTI tunnel's schema implemented;
+NEXT:
+1. Use parent's address as source, should modify the code of ipsectun_add;
+2. Check the reason why can not ping the VTI's address; --DONE
+3. Implement GRE tunnel first if Windows or Linux could support testing;
+4. Implement IPSec ESP tunnel according the design in PPT;
+5. May revise the SA's definition to contain anti_replay attack slide window;
+6. Implement vti set command, make tunnel's status/source/destination/SA/... could be set;
+7. Optimize the genif architecture using VTI as example;
+
+NEXT@20221014:
+1. SA management code finished, and seems OK;
+2. Implement the VTI management code;
+3. Install the VTI into system, can ping it using network command; --OK
+4. Associate the VTI and SA together;
+5. Implement the ipsec_input/ipsec_output routines respectly;
+6. Check wheather the output packet using pppoe public IP can not bypass NAT; --OK, caused by checksum;
+7. A dedicated netif is created by pppoe and beyond genif arch, how to deal it?
+   -- A new genif maybe created as the shadow genif, thus VTI's parent interface
+      could be set to this shadow interface;
+   -- The shadow interface's output routine should be delegated to netif's output;
+   -- Shadow interface could be saved to pppoe instance object(defined in oemgr.h);
+   -- VTI's output should invoke parent's output routine directly?
+8. Use spinlock instead of mutex in easyNat, since multiple threads may access easyNAT;
+9. Put first hirarchy dispatching into tcpip_input routine, so pppoe interface also
+   could be used as VTI incoming interface;
+10. Should consider NAT when apply GRE/IPSec processing?
+11. Trouble shooting the issue that telnet can not work on interface with NAT enabled;-- OK
+12. Skeleton of general_ip_input implemented, packet_for_me and pGenif added to genif;
+13. GRE's input, packet_for_me, and genif_l3_output's skeleton are implemented;
+NEXT@20221014:
+1. Implement packet_is_to_me at genip.c, check if the incoming IP packet is for this genif;
+2. Schedule the incoming IP packet according to PPT's general_ip_input description;
+3. Implement the l3_output of GRE, to link the data processing path together;
+4. Make sure the dynamic IP address of netif will be set to genif accordingly;--OK
+5. Implement 7~10 steps above;
+6. Draw a full picture of IP input/output processing;
+7. Implement general_ip_output according to PPT's description; --OK
+8. Implement r/w spin lock to protect routing table; --OK
+9. Implement routing table mechanism, include operations and CLI;
+    -- Schema is created and routing manager is defined;
+	-- Shuold implement route add, looking up routines later...
+10. Replace the current ip_route routine using new one;
+11. Test the routing mechanism(CLI, 2 or more genif,...);
+12. Implement GRE tunnel, link with routing mechanism;
+13. Test GRE tunnel, routing, together with Linux machine;
+
+20221127:
+1. IP address setting mechanism is implemented, i.e, dhcp set netif's ip
+   address by NetworkManager's interface, address is not set when new
+   genif is registered(RegisterGenif), AddGenifAddress must be invoked 
+   to set new address on the genif, and ip route entry is added when
+   new IP address is set, old ip route will be purged;
+2. Default ip route will be installed in routing manager, when 
+   netif_set_default is invoked;
+TO-DO:
+1. Replace lwIP's ip_route routine with routing manager's implementation; --OK
+2. Implement shadow genif for loop interface; -- done, seems OK.
+3. Implement shadow genif for pppoe interface; --done, to be tested.
+   -- 2 files, genifpp.h/.c are added to implement this mechanism.
+4. Check why can ping 127.0.0.1, since it's a directly ip address;--done, routing table
+   will be looked up no matter local or remote ip address under lwIP;
+5. Review the genif mechanism thorouly:
+   1) GRE over normal ethernet interface, with I/O;
+   2) GRE over pppoe interface, with I/O;
+   3) GRE over other type of vti, with I/O;
+6. Implement UPD VPN mechanism, as following:
+   1) Upgrade BlackBox with newest version, since the pppoe netif's input routine is
+      replaced by general_ip_input, should be tested; --OK
+   2) Test Linux VPN client in HP pc, and try to connect AWS instance; --OK
+   3) Implement the UDP tunnel under hellox with genif architecture; --OK
+   4) Think a name for UDP tunnel under hellox; --OK, HHTT(ht2)
+
+TODO@20230115:
+ 1. Change the DNS server to public when issue to client; --OK
+ 2. Replace 172.20/16 segment to 192.168/16 segment in ht_server code and
+    re-install it; --OK
+ 3. Upgrade the hellox box and test the VPN function, using pppoe interface; --OK
+ 4. Make ht2 run in it's dedicated thread, call proper ip input/output routine
+    to make the IP i/o in tcp/ip thread; --OK
+ 5. Implement the encryption function of the hhtt tunnel, using AES or DES;
+    -- Port AES souce code from mbedtls and testing it; --OK
+	-- Add key and context into ht2 tunnel object and init them; --OK;
+	-- Implement tx ciphering in tx procedure, in back thread; --OK
+	-- Port AES souce code into ht2 server side in linux implement rx ciphering; --OK
+	-- Test the uni-direction ciphering, i.e, packet from client to server is
+	   encrypted, and from server to client is plain-text;--OK
+	-- Implement the other direction's ciphering, both in client and in server;
+	-- Test the whole ciphering process in virtual machine;--OK
+	-- Upgrate the black box and use it in real world;
+	-- Replace the build in key as key file(VERY IMPORTANT);
+ 6. Implement the source routing mechanism, with a dedicated AP to use tunnel; --OK
+ 7. Review the vti architecture(call ip_output or parent's output), revise ppt accordingly;
+ 8. Release the new version.
+
+ Issue seems solved:
+ 1. ping is from user application, which a buffer is allocated and transfered to tcp/ip thread
+    and the thread construct a pbuf using PBUF_REF flag, which jsut refer the buffer directly;
+2.  After switch the sending operation to different threads, the routine of socket will return
+    and the pbuf is pending for xmit, and the buffer is released before send over, so the ping
+	will fail.
+
+TODO @ 20230227:
+1. Finishing ht2 optimization code, use 0 as initial peer-address; --OK
+2. Revise the server side's code, to load ciphering key file from storage; --OK
+3. Update the USB stick of old router, and reload old router;
+4. Configure VPN on old router, to make sure network is online for daily usage;
+5. Test the new router using latest version;
+    -- Check all port/interfaces of the new router;
+	-- Check if the display could connect to it, connect it if OK;
+	-- Use console cable to connect the new router;
+	-- Plug in the usb stick, reboot the router;
+	-- If information displayed, then it's OK;
+	-- If not, go to company to debug it;
+	-- Plug in ethernet cable to test the network interface;
+	-- Test software function thoroughly;
+	-- Replace the old one with new;
+	-- Use ethernet cable connect new router to old one, test all tunnels;
+	-- Replace the old one with the new;
+	ALL OK ABOVE
+

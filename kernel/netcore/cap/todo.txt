@@ -1,0 +1,45 @@
+1. Maybe should disable syslog when start capture, since FS is not support MT now;
+2. Capture background thread is implemented;
+3. Call back routine for ethernet is implemented but not tested;
+4. Worker routine of capture is implemented but without testing;
+5. Commands in network.c is implemented and maybe OK;
+
+6. Capture function tested and sames OK;
+
+TO-DO:
+1. Enable callback in __start_worker routine, by setting flag and callback routine;
+2. Implement the stop capture routine, clear flag and the callback routine, should
+   consider when to close capture file, since there maybe competition;
+3. Test capture function in virtual box;
+4. Should use genif's spin lock to protect flag and callback routine;
+
+Procedures of capstop:--OK
+1. In shell thread:
+   1) Get the genif by it's index(user specified);
+   2) Clear genif's flag and call back routine, use spin lock;
+   3) The should no capture call back will be invoked;
+   4) Send a message to back ground thread:
+     MSG ID: MSG_CAPTURE_STOP
+     MSG dwParam: the capture management block(from genif);
+   5) Release the genif object;
+
+2. In stop_worker routine(runs in capture background thread):
+   1) Get the capture management block from dwParam;
+   2) Get the save file from management block and close it;
+   3) Release the genif object;
+   4) Free management block;
+   There should not pending pbufs to process, since the stop
+   message always later than start than ARRIVAL message, because
+   when we clear genif's flag, no farther capturing apply.
+
+20230910:
+1. Cap start and stop are all tested and sames OK;
+2. The captured file is loaded in wireshark and displays OK, with time all 0;
+3. But when ping the virtualbox on PC, exception raise in ip.c(811 line);--done
+4. Exit under network with capturing will lead FBL bug;
+
+20230916:
+TO-DO:
+1. Update the physical router and trouble shooting pppoe issue; --OK
+2. Use guide in phone to configure the 304 wireless router to work in bridge mode;
+3. Disable syslog before start capturing;

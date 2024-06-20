@@ -25,7 +25,7 @@
  *     @(#)s_finite.c 1.3 95/01/18
  */
 
-#include "kapi.h"
+#include "hellox.h"
 #include "math.h"
 
 /* finite(x) returns 1 is x is finite, else 0;

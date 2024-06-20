@@ -1,5 +1,5 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
-<Project DefaultTargets="Build" ToolsVersion="12.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+<Project DefaultTargets="Build" ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup Label="ProjectConfigurations">
     <ProjectConfiguration Include="Debug|Win32">
       <Configuration>Debug</Configuration>
@@ -14,18 +14,19 @@
     <ProjectGuid>{5E2A6354-0680-48DF-B1B4-BA618BE37083}</ProjectGuid>
     <Keyword>Win32Proj</Keyword>
     <RootNamespace>hxlib</RootNamespace>
+    <WindowsTargetPlatformVersion>10.0.17763.0</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
     <ConfigurationType>StaticLibrary</ConfigurationType>
     <UseDebugLibraries>true</UseDebugLibraries>
-    <PlatformToolset>v120</PlatformToolset>
+    <PlatformToolset>v141</PlatformToolset>
     <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
     <ConfigurationType>StaticLibrary</ConfigurationType>
     <UseDebugLibraries>false</UseDebugLibraries>
-    <PlatformToolset>v120</PlatformToolset>
+    <PlatformToolset>v141</PlatformToolset>
     <WholeProgramOptimization>true</WholeProgramOptimization>
     <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
@@ -45,7 +46,7 @@
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <LinkIncremental>false</LinkIncremental>
-    <IncludePath />
+    <IncludePath>D:\HelloX\V190\HelloX_OS\hxlib;</IncludePath>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
@@ -80,24 +81,33 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <Text Include="ReadMe.txt" />
+    <Text Include="todo.txt" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="arch\bpstruct.h" />
     <ClInclude Include="arch\epstruct.h" />
+    <ClInclude Include="cJSON\cJSON.h" />
     <ClInclude Include="ctype.h" />
     <ClInclude Include="errno.h" />
+    <ClInclude Include="float.h" />
+    <ClInclude Include="hellox.h" />
     <ClInclude Include="inet.h" />
     <ClInclude Include="inttypes.h" />
     <ClInclude Include="io.h" />
-    <ClInclude Include="ip_addr.h" />
-    <ClInclude Include="kapi.h" />
     <ClInclude Include="limits.h" />
     <ClInclude Include="math.h" />
     <ClInclude Include="pthread.h" />
+    <ClInclude Include="ptmalloc\malloc.h" />
+    <ClInclude Include="regexp\regexp.h" />
     <ClInclude Include="sched.h" />
     <ClInclude Include="setjmp.h" />
     <ClInclude Include="signal.h" />
-    <ClInclude Include="sockets.h" />
+    <ClInclude Include="sockets\genif.h" />
+    <ClInclude Include="sockets\hx_eth.h" />
+    <ClInclude Include="sockets\hx_inet.h" />
+    <ClInclude Include="sockets\ip_addr.h" />
+    <ClInclude Include="sockets\sockets.h" />
+    <ClInclude Include="sockets\sockopt.h" />
     <ClInclude Include="stdarg.h" />
     <ClInclude Include="stdbool.h" />
     <ClInclude Include="stddef.h" />
@@ -106,12 +116,15 @@
     <ClInclude Include="stdlib.h" />
     <ClInclude Include="string.h" />
     <ClInclude Include="sys\cpu.h" />
+    <ClInclude Include="sys\ide.h" />
     <ClInclude Include="sys\stat.h" />
     <ClInclude Include="sys\types.h" />
     <ClInclude Include="sys\utsname.h" />
     <ClInclude Include="time.h" />
     <ClInclude Include="time_pri.h" />
     <ClInclude Include="unistd.h" />
+    <ClInclude Include="wildcard\wildcard.h" />
+    <ClInclude Include="__hxcomm.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="acos.c" />
@@ -120,6 +133,7 @@
     <ClCompile Include="atan2.c" />
     <ClCompile Include="atox.c" />
     <ClCompile Include="ceil.c" />
+    <ClCompile Include="cJSON\cJSON.c" />
     <ClCompile Include="copysign.c" />
     <ClCompile Include="ctype.c" />
     <ClCompile Include="errno.c" />
@@ -127,10 +141,8 @@
     <ClCompile Include="fabs.c" />
     <ClCompile Include="finite.c" />
     <ClCompile Include="getenv.c" />
-    <ClCompile Include="inet.c" />
+    <ClCompile Include="hellox.c" />
     <ClCompile Include="io.c" />
-    <ClCompile Include="ip_addr.c" />
-    <ClCompile Include="kapi.c" />
     <ClCompile Include="log.c" />
     <ClCompile Include="math.c" />
     <ClCompile Include="memory.c" />
@@ -139,19 +151,26 @@
     <ClCompile Include="pthread.c" />
     <ClCompile Include="pthread_mutex.c" />
     <ClCompile Include="pthread_other.c" />
+    <ClCompile Include="ptmalloc\malloc.c" />
     <ClCompile Include="rand.c" />
+    <ClCompile Include="regexp\regexp.c" />
     <ClCompile Include="scalbn.c" />
+    <ClCompile Include="scanf.c" />
     <ClCompile Include="sched.c" />
     <ClCompile Include="setjmp.c" />
     <ClCompile Include="signal.c" />
-    <ClCompile Include="sockets.c" />
+    <ClCompile Include="sockets\hx_eth.c" />
+    <ClCompile Include="sockets\hx_inet.c" />
+    <ClCompile Include="sockets\ip_addr.c" />
+    <ClCompile Include="sockets\socket.c" />
     <ClCompile Include="sqrt.c" />
     <ClCompile Include="stat.c" />
     <ClCompile Include="stdio.c" />
     <ClCompile Include="string.c" />
-    <ClCompile Include="sysmem.c" />
+    <ClCompile Include="strtod.c" />
     <ClCompile Include="time.c" />
     <ClCompile Include="trig.c" />
+    <ClCompile Include="wildcard\wildcard.c" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

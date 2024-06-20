@@ -13,10 +13,10 @@
 #define __FSSTR_H__
 
 //Functions to manipulate file and directory name.
-BOOL NameIsValid(CHAR* pFullName);
+BOOL NameIsValid(const CHAR* pFullName);
 BOOL GetFullNameLevel(CHAR* pFullName,DWORD* pdwLevel);       //Get a full name's sub-dir level.
 BOOL GetSubDirectory(CHAR* pFullName,DWORD dwLevel,CHAR* pSubDir);
-BOOL GetPathName(CHAR* pFullName,CHAR* pDir,CHAR* pFileName);
+BOOL GetPathName(const CHAR* pFullName,CHAR* pDir,CHAR* pFileName);
 
 int wstrcmp(const WCHAR* src,const WCHAR* dst);
 WCHAR* wstrcpy (WCHAR* dest,const WCHAR* src);

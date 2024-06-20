@@ -41,6 +41,7 @@
 #include "lwip/def.h"
 #include "lwip/pbuf.h"
 
+#include "genif.h"   /* For generic network interface(genif). */
 #include "netcfg.h"  /* For NAT function switch. */
 
 #if LWIP_DHCP
@@ -240,6 +241,14 @@ struct netif {
   u16_t loop_cnt_current;
 #endif /* LWIP_LOOPBACK_MAX_PBUFS */
 #endif /* ENABLE_LOOPBACK */
+  /* 
+   * The generic network interface associated 
+   * with this netif. 
+   * Genif is the essential network interface for
+   * HelloX, and netif is for lwIP. Genif will
+   * unify netif in the future.
+   */
+  __GENERIC_NETIF* pGenif;
 };
 
 #if LWIP_SNMP

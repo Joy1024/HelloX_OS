@@ -189,6 +189,7 @@ static DWORD _exit(__CMD_PARA_OBJ* lpCmdObj)
 //
 static DWORD memcheck(__CMD_PARA_OBJ* lpCmdObj)
 {
+	BUG_ON(TRUE);
 	return SHELL_CMD_PARSER_SUCCESS;
 }
 

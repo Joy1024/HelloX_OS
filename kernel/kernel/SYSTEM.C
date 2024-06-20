@@ -551,7 +551,7 @@ __TERMINAL:
 /* Return current tick counter. */
 static DWORD _GetClockTickCounter(__COMMON_OBJECT* lpThis)
 {
-	__SYSTEM*    lpSystem = (__SYSTEM*)lpThis;
+	__SYSTEM* lpSystem = (__SYSTEM*)lpThis;
 
 	if(NULL == lpSystem)
 	{
@@ -564,6 +564,10 @@ static DWORD _GetClockTickCounter(__COMMON_OBJECT* lpThis)
 //of system tick counter.
 static DWORD GetSysTick(DWORD* pdwHigh32)
 {
+	if (pdwHigh32)
+	{
+		*pdwHigh32 = 0;
+	}
 	return System.dwClockTickCounter;
 }
 
@@ -579,23 +583,28 @@ static DWORD GetPhysicalMemorySize(__COMMON_OBJECT* lpThis)
 
 /*
  * This routine is the default interrupt handler.
- * If no entity(such as device driver) install an interrupt handler,this handler
- * will be called to handle the appropriate interrupt.
- * It will only print out a message indicating the interrupt's number and return.
+ * If no entity(such as device driver) install an 
+ * interrupt handler, or all handlers return FALSE,
+ * this routine will be invoked.
+ * Just show a message when total unhandled interrupts
+ * less than 16.
  */
 static VOID DefaultIntHandler(LPVOID lpEsp,UCHAR ucVector)
 {
 	CHAR strBuffer[64];
-	static DWORD dwTotalNum    = 0;
+	static unsigned long total_ui = 0;
 
 	/* Record this unhandled exception or interrupt. */
-	dwTotalNum ++;
+	total_ui ++;
 
-	_hx_printk("  Unhandled interrupt.");
-	_hx_sprintf(strBuffer,"  Interrupt number = %d.",ucVector);
-	_hx_printk(strBuffer);
-	_hx_sprintf(strBuffer,"  Total unhandled interrupt times = %d.",dwTotalNum);
-	_hx_printk(strBuffer);
+	if (total_ui < 8)
+	{
+		_hx_sprintf(strBuffer, "  Unhandled interrupt[%d].\r\n", ucVector);
+		_hx_printk(strBuffer);
+		_hx_sprintf(strBuffer, "  Total unhandled interrupt times[%d].\r\n",
+			total_ui);
+		_hx_printk(strBuffer);
+	}
 
 	return;
 }
@@ -813,17 +822,28 @@ static VOID DefaultExcepHandler(LPVOID pESP, UCHAR ucVector)
 	}
 	else
 	{
-		/* Kernel error, just halt system. */
+		/* Kernel error, just halt system or reboot. */
 		if (totalExcepNum >= 1)
 		{
 			_hx_printf("  *** *** ***\r\n");
 			_hx_printf("  Fatal error:exception in kernel.\r\n");
 			_hx_printf("  No other choice but reboot system.\r\n");
 			__DISABLE_LOCAL_INTERRUPT(dwFlags);
+#if (!BUG_ON_REBOOT)
 			while (1)
 			{
 				HaltSystem();
 			}
+#else
+			/* Reboot the system. */
+			for (int i = 0; i < 30; i++)
+			{
+				/* Delay 5 seconds. */
+				_hx_printf("-");
+				__MicroDelay(1000000);
+			}
+			BIOSReboot();
+#endif
 		}
 	}
 	return;

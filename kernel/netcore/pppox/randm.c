@@ -35,7 +35,7 @@
 
 #if PPP_SUPPORT /* don't build if not configured for use in lwipopts.h */
 
-#include "md5.h"
+#include "chapmd5.h"
 #include "randm.h"
 
 #include "ppp_impl.h"

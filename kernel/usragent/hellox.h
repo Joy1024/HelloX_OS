@@ -29,7 +29,9 @@ typedef signed short SHORT;
 typedef int INT;
 typedef unsigned int UINT;
 typedef unsigned long DWORD;
+typedef unsigned long long QWORD;
 typedef unsigned long ULONG;
+typedef unsigned long long ULONGLONG;
 typedef long LONG;
 typedef long* LPLONG;
 typedef void* LPVOID;
@@ -62,6 +64,10 @@ typedef enum {
 /* Constants. */
 #define MAX_DWORD_VALUE    0xFFFFFFFF
 #define MAX_FILE_NAME_LEN  512
+
+/* System directory. */
+#define HELLOX_SYSTEM_DIR32 "C:\\HELLOX\\SYSTEM32"
+#define HELLOX_SYSTEM_DIR64 "C:\\HELLOX\\SYSTEM64"
 
 /* Maximal X and Y dimension of mouse. */
 #define MOUSE_DIM_X   511
@@ -443,6 +449,8 @@ VOID DestroyUserThread(HANDLE hThread);
 DWORD GetThreadID(HANDLE hThread);
 DWORD SetThreadPriority(HANDLE hThread, DWORD dwPriority);
 HANDLE GetCurrentThread(void);
+DWORD GetLastError(void);
+DWORD SetLastError(DWORD);
 unsigned long GetCurrentThreadID();
 unsigned long TerminateKernelThread(HANDLE hTarget, int status);
 
@@ -561,13 +569,32 @@ DWORD WaitForThisObjectEx(HANDLE hObject, DWORD dwMillionSecond);
  *    allocates page tables for ALL;
  * 3. DEFAULT as alias of ALL flag.
  */
-#define VIRTUAL_AREA_ALLOCATE_RESERVE   0x00000001
-#define VIRTUAL_AREA_ALLOCATE_COMMIT    0x00000002
-#define VIRTUAL_AREA_ALLOCATE_IO        0x00000004
-#define VIRTUAL_AREA_ALLOCATE_ALL       0x00000008
-#define VIRTUAL_AREA_ALLOCATE_IOCOMMIT  0x00000010
-#define VIRTUAL_AREA_ALLOCATE_MAP       0x00000020
+#define VIRTUAL_AREA_ALLOCATE_RESERVE   (1 << 0) //0x00000001
+#define VIRTUAL_AREA_ALLOCATE_COMMIT    (1 << 1) //0x00000002
+#define VIRTUAL_AREA_ALLOCATE_IO        (1 << 2) //0x00000004
+#define VIRTUAL_AREA_ALLOCATE_ALL       (1 << 3) //0x00000008
+#define VIRTUAL_AREA_ALLOCATE_IOCOMMIT  (1 << 4) //0x00000010
+#define VIRTUAL_AREA_ALLOCATE_MAP       (1 << 5) //0x00000020
 #define VIRTUAL_AREA_ALLOCATE_DEFAULT   VIRTUAL_AREA_ALLOCATE_ALL
+ /* Mask for allocate flags. */
+#define VIRTUAL_AREA_ALLOCATE_FLAG_MASK 0x0000FFFF
+
+/* Allocate from user space. */
+#define VIRTUAL_AREA_ALLOCATE_USERSPACE   (1 << 16) //0x00010000
+/* Allocate from kernel space. */
+#define VIRTUAL_AREA_ALLOCATE_KERNELSPACE (1 << 17) //0x00020000
+/* Allocate from IO space. */
+#define VIRTUAL_AREA_ALLOCATE_IOSPACE     (1 << 18) //0x00040000
+/* Allocate from stack space. */
+#define VIRTUAL_AREA_ALLOCATE_STACK       (1 << 19) //0x00080000
+/* Allocate from user lib space. */
+#define VIRTUAL_AREA_ALLOCATE_USERLIB     (1 << 20)
+/* Allocate from user heap space. */
+#define VIRTUAL_AREA_ALLOCATE_USERHEAP    (1 << 21)
+/* Allocate from user app space. */
+#define VIRTUAL_AREA_ALLOCATE_USERAPP     (1 << 22)
+/* Mask for allocate space. */
+#define VIRTUAL_AREA_ALLOCATE_SPACE_MASK 0xFFFF0000
 
  /* Allocate or free a virtual area from memory space. */
 LPVOID VirtualAlloc(LPVOID lpDesiredAddr,

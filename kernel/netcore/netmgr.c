@@ -23,6 +23,7 @@
 #include "proto.h"
 #include "genif.h"
 #include "netmgr.h"
+#include "routmgr/rtmgr.h"
 #include "netglob.h"
 
 #include "lwip/inet.h"
@@ -62,6 +63,11 @@ __TERMINAL:
  * Create a generic netif object and returns it's base,the
  * caller then should initialize it,and register it into
  * system by calling RegisterGenif routine.
+ * -- Parent genif(parent) must be hold(increase ref-counter)
+ * -- by caller of this routine, this is the assumption of
+ * -- current implementation. It maybe optimized that the parent
+ * -- is obtained in this routine, and the parameter @parent
+ * -- should be changed to string in this case, in the future.
  */
 static __GENERIC_NETIF* __CreateGenif(__GENERIC_NETIF* parent,
 	__GENIF_DESTRUCTOR destructor)
@@ -86,6 +92,8 @@ static __GENERIC_NETIF* __CreateGenif(__GENERIC_NETIF* parent,
 
 	__ATOMIC_INCREASE(&pGenif->if_count);
 	pGenif->genif_destructor = destructor;
+	pGenif->pGenifParent = parent;
+	__INIT_SPIN_LOCK(pGenif->spin_lock, "genif");
 	__ENTER_CRITICAL_SECTION_SMP(NetworkManager.spin_lock, ulFlags);
 	pGenif->if_index = NetworkManager.genif_index;
 	NetworkManager.genif_index++;
@@ -110,7 +118,7 @@ static BOOL __VerifyGenifMembers(__GENERIC_NETIF* pGenif)
 		/* Packet input routine must be specified. */
 		return FALSE;
 	}
-	if (NULL == pGenif->genif_output)
+	if (NULL == pGenif->genif_l2_output)
 	{
 		/* Packet sending routine must be present. */
 		return FALSE;
@@ -126,6 +134,33 @@ static BOOL __VerifyGenifMembers(__GENERIC_NETIF* pGenif)
 		return FALSE;
 	}
 	return TRUE;
+}
+
+/* Check if genif's name conflict. */
+static BOOL __VerifyGenifName(const char* genif_name)
+{
+	unsigned long ulFlags;
+	BOOL bResult = FALSE;
+	__GENERIC_NETIF* pGenif = NULL;
+
+	__ENTER_CRITICAL_SECTION_SMP(NetworkManager.spin_lock, ulFlags);
+	pGenif = NetworkManager.pGenifRoot;
+	while (pGenif)
+	{
+		if (strcmp(genif_name, pGenif->genif_name) == 0)
+		{
+			/* name already used. */
+			__LEAVE_CRITICAL_SECTION_SMP(NetworkManager.spin_lock, ulFlags);
+			goto __TERMINAL;
+		}
+		pGenif = pGenif->pGenifNext;
+	}
+	__LEAVE_CRITICAL_SECTION_SMP(NetworkManager.spin_lock, ulFlags);
+	
+	bResult = TRUE;
+
+__TERMINAL:
+	return bResult;
 }
 
 /*
@@ -203,6 +238,23 @@ static BOOL __RegisterGenif(__GENERIC_NETIF* pGenif)
 		/* Invalid genif object. */
 		goto __TERMINAL;
 	}
+	/* Make sure genif's name is not conflict. */
+	if (!__VerifyGenifName(pGenif->genif_name))
+	{
+		_hx_printf("[%s]genif's name[%s] is used already.\r\n",
+			__func__, pGenif->genif_name);
+		goto __TERMINAL;
+	}
+
+	/* 
+	 * Load saved configure of this genif from 
+	 * in memory database. 
+	 */
+	if (!GetGenifConfig(pGenif))
+	{
+		__LOG("[%s]failed to get saved config for genif[%s]\r\n",
+			__func__, pGenif->genif_name);
+	}
 
 	/* Bind the genif to all network protocols. */
 	if (!__ProtocolBind(pGenif))
@@ -218,8 +270,6 @@ static BOOL __RegisterGenif(__GENERIC_NETIF* pGenif)
 		/* Insert into parent genif's children list. */
 		pGenif->pGenifSibling = pGenif->pGenifParent->pGenifChild;
 		pGenif->pGenifParent->pGenifChild = pGenif;
-		/* Increase refer counter since parent refers it. */
-		__ATOMIC_INCREASE(&pGenif->if_count);
 	}
 	/* Insert into the genif global list of network manager. */
 	if (NULL == NetworkManager.pGenifLast)
@@ -340,6 +390,69 @@ static BOOL __DestroyGenif(__GENERIC_NETIF* pGenif)
 	return bResult;
 }
 
+/* Unlink the genif from global list. */
+static void __unlink_genif(__GENERIC_NETIF* pGenif)
+{
+	__GENERIC_NETIF* pSibling = NULL, *pParent = NULL, *pChild = NULL;
+	__GENERIC_NETIF* pCurrChild = NULL;
+
+	/* Remove from network manager's global list. */
+	if (pGenif == NetworkManager.pGenifRoot)
+	{
+		/* First one. */
+		if (pGenif == NetworkManager.pGenifLast)
+		{
+			/* Also is the last one. */
+			NetworkManager.pGenifRoot = NULL;
+			NetworkManager.pGenifLast = NULL;
+			NetworkManager.genif_num--;
+		}
+		else
+		{
+			/* Not last one. */
+			NetworkManager.pGenifRoot = pGenif->pGenifNext;
+			NetworkManager.genif_num--;
+		}
+	}
+	else
+	{
+		/* Not the first one. */
+		pCurrChild = NetworkManager.pGenifRoot;
+		while (pCurrChild)
+		{
+			if (pCurrChild->pGenifNext == pGenif)
+			{
+				/* Located the genif in list. */
+				pCurrChild->pGenifNext = pGenif->pGenifNext;
+				if (NULL == pGenif->pGenifNext)
+				{
+					/* genif is the last one. */
+					NetworkManager.pGenifLast = pCurrChild;
+				}
+				NetworkManager.genif_num--;
+				break;
+			}
+			pCurrChild = pCurrChild->pGenifNext;
+		}
+		if (NULL == pCurrChild)
+		{
+			/* Show a warning. */
+			_hx_printk("%s:genif not in global list.\r\n", __func__);
+		}
+	}
+}
+
+/*
+ * Notify all protocols bound to the specified genif that
+ * this genif will be released.
+ * Protocol objects should release all resources associated
+ * with the genif.
+ */
+static BOOL __protocol_unbind(__GENERIC_NETIF* pGenif)
+{
+	return FALSE;
+}
+
 /* 
  * Decrease reference counter of generic netif, and 
  * destroy it if refer counter reaches 0.
@@ -349,9 +462,10 @@ static BOOL __ReleaseGenif(__GENERIC_NETIF* pGenif)
 {
 	unsigned long ulFlags = 0;
 	BOOL bResult = FALSE;
+	__GENERIC_NETIF* parent_genif = NULL;
 
 	BUG_ON(NULL == pGenif);
-	
+
 	/* Must obtain network manager's spin lock. */
 	__ENTER_CRITICAL_SECTION_SMP(NetworkManager.spin_lock, ulFlags);
 	/* Verify the object. */
@@ -362,50 +476,64 @@ static BOOL __ReleaseGenif(__GENERIC_NETIF* pGenif)
 	}
 	/* Decrease refer counter. */
 	__ATOMIC_DECREASE(&pGenif->if_count);
-	if (0 == pGenif->if_count)
+	if (pGenif->if_count)
 	{
-		/* 
-		 * Just release it if does not refered yet. 
-		 * Unlink it from parent's child list if it has
-		 * parent.
-		 */
-		if (pGenif->pGenifParent)
-		{
-			__GENERIC_NETIF* pParent = pGenif->pGenifParent;
-			__GENERIC_NETIF* pSibling = NULL;
+		/* Genif is used now. */
+		__LEAVE_CRITICAL_SECTION_SMP(NetworkManager.spin_lock, ulFlags);
+		goto __TERMINAL;
+	}
 
-			/* Remove itself from sibling list. */
-			pSibling = pParent->pGenifChild;
-			if (pSibling == pGenif)
+	/*
+	* Just release it if does not refered yet.
+	* Unlink it from parent's child list if it has
+	* parent.
+	*/
+	if (pGenif->pGenifParent)
+	{
+		__GENERIC_NETIF* pParent = pGenif->pGenifParent;
+		__GENERIC_NETIF* pSibling = NULL;
+
+		parent_genif = pGenif->pGenifParent;
+
+		/* Remove itself from sibling list. */
+		pSibling = pParent->pGenifChild;
+		if (pSibling == pGenif)
+		{
+			/* First one in list. */
+			pParent->pGenifChild = pGenif->pGenifSibling;
+		}
+		else
+		{
+			while (pSibling)
 			{
-				/* First one in list. */
-				pParent->pGenifChild = pGenif->pGenifSibling;
-			}
-			else
-			{
-				while (pSibling)
+				if (pSibling->pGenifSibling == pGenif)
 				{
-					if (pSibling->pGenifSibling == pGenif)
-					{
-						pSibling->pGenifSibling = pGenif->pGenifSibling;
-						break;
-					}
-					pSibling = pSibling->pGenifSibling;
+					pSibling->pGenifSibling = pGenif->pGenifSibling;
+					break;
 				}
-				/* Not in sibling list but parent set,show a warning. */
-				_hx_printk("%s:not in sibling list with parent set.\r\n", __func__);
+				pSibling = pSibling->pGenifSibling;
 			}
 		}
-		/* Reset parent/sibling pointers. */
-		pGenif->pGenifParent = pGenif->pGenifSibling = NULL;
-
-		/* 
-		 * It's children branch is also released in
-		 * DestroyGenif routine,since it's a recursive routine.
-		 */
-		bResult = __DestroyGenif(pGenif);
 	}
+	/* Reset parent/sibling pointers. */
+	pGenif->pGenifParent = pGenif->pGenifSibling = NULL;
+
+	/* Unlink it from global list. */
+	__unlink_genif(pGenif);
 	__LEAVE_CRITICAL_SECTION_SMP(NetworkManager.spin_lock, ulFlags);
+
+	/* Release it's parent if has. */
+	if (parent_genif)
+	{
+		__ReleaseGenif(parent_genif);
+	}
+
+	/* Notify protocols that bind to this genif. */
+	__protocol_unbind(pGenif);
+
+	/* Releae memory. */
+	_hx_free(pGenif);
+	bResult = TRUE;
 
 __TERMINAL:
 	return bResult;
@@ -698,6 +826,35 @@ __TERMINAL:
 }
 
 /* 
+ * Local helper to show out statistics 
+ * info of a genif. 
+ * Invoked by ShowOneGenif routine.
+ */
+static void ShowGenifStat(__GENERIC_NETIF* pGenif)
+{
+	unsigned long long rx_bytes, tx_bytes;
+
+	LockedGet64(&rx_bytes, &pGenif->stat.rx_bytes);
+	LockedGet64(&tx_bytes, &pGenif->stat.tx_bytes);
+
+	/* Show statistics counter of the genif. */
+	_hx_printf("  rx/tx/rx_bytes/tx_bytes: %u/%u/%llu/%llu\r\n",
+		pGenif->stat.rx_pkt,
+		pGenif->stat.tx_pkt,
+		rx_bytes,
+		tx_bytes);
+	_hx_printf("  rx_m/tx_m/rx_b/tx_b: %u/%u/%u/%u\r\n",
+		pGenif->stat.rx_mcast,
+		pGenif->stat.tx_mcast,
+		pGenif->stat.rx_bcast,
+		pGenif->stat.tx_bcast);
+	_hx_printf("  rx_err/tx_err/ref_count: %u/%u/%u\r\n",
+		pGenif->stat.rx_err,
+		pGenif->stat.tx_err,
+		pGenif->if_count);
+}
+
+/* 
  * Print out one genif. The genif object is obtained 
  * by the caller before call this routine,so it can be
  * gaurantee that the genif is not released.
@@ -711,6 +868,9 @@ static void __ShowOneGenif(__GENERIC_NETIF* pGenif)
 	char* link_status = NULL;
 	char* duplex = NULL;
 	char* speed = NULL;
+	char* link_type = NULL;
+	char* vti_type = 0;
+	__GENERIC_NETIF* pGenifChild = NULL;
 
 	/* Link status to string. */
 	if (pGenif->link_status == up)
@@ -756,11 +916,79 @@ static void __ShowOneGenif(__GENERIC_NETIF* pGenif)
 		break;
 	}
 
+	/* Show link type. */
+	switch (pGenif->link_type)
+	{
+	case lt_unknown:
+		link_type = "unknow";
+		break;
+	case lt_ethernet:
+		link_type = "ethernet";
+		break;
+	case lt_vlanif:
+		link_type = "vlanif";
+		break;
+	case lt_pppoe:
+		link_type = "pppoe";
+		break;
+	case lt_pppos:
+		link_type = "pppos";
+		break;
+	case lt_tunnel:
+		link_type = "tunnel";
+		break;
+	case lt_loopback:
+		link_type = "loopback";
+		break;
+	case lt_shadow:
+		link_type = "shadow";
+		break;
+	default:
+		link_type = "INVALID";
+		break;
+	}
+
+	/* Set VTI type accordingly. */
+	if (pGenif->link_type == lt_tunnel)
+	{
+		switch (pGenif->vti_type)
+		{
+		case vti_ipsec:
+			vti_type = "ipsec";
+			break;
+		case vti_gre:
+			vti_type = "gre";
+			break;
+		case vti_l2tp:
+			vti_type = "l2tp";
+			break;
+		case vti_ht2:
+			vti_type = "ht2";
+			break;
+		default:
+			vti_type = "unknown";
+			break;
+		}
+	}
+
 	/* Show out general information. */
 	_hx_printf("  --------------------------\r\n");
-	_hx_printf("  genif name: %s\r\n", pGenif->genif_name);
-	_hx_printf("  link status: %s\r\n", link_status);
+	_hx_printf("  genif name: %s, mtu: %d\r\n", 
+		pGenif->genif_name, pGenif->genif_mtu);
+	if (pGenif->pGenifParent)
+	{
+		/* Show out parent. */
+		_hx_printf("  genif parent: %s\r\n", pGenif->pGenifParent->genif_name);
+	}
+
+	/* Show link level status. */
+	_hx_printf("  link status: %s, link type: %s\r\n", link_status, link_type);
+	if (pGenif->link_type == lt_tunnel)
+	{
+		_hx_printf("  tunnel protocol: %s\r\n", vti_type);
+	}
 	_hx_printf("  link duplex/speed: %s/%s\r\n", duplex, speed);
+	_hx_printf("  genif flags: 0x%X\r\n", pGenif->genif_flags);
 
 	/* Show out hard address. */
 	_hx_printf("  hard addr: [%.2X-%.2X-%.2X-%.2X-%.2X-%.2X]\r\n",
@@ -774,25 +1002,32 @@ static void __ShowOneGenif(__GENERIC_NETIF* pGenif)
 	/* Show out network address. */
 #if defined(__CFG_NET_IPv4)
 	/* Show IPv4 address. */
-	_hx_printf("  ip addr/mask: %s/%s\r\n", inet_ntoa(pGenif->ip_addr[0]),
-		inet_ntoa(pGenif->ip_mask[0]));
+	_hx_printf("  ip addr/mask: %s/", inet_ntoa(pGenif->ip_addr[0]));
+	_hx_printf("%s\r\n", inet_ntoa(pGenif->ip_mask[0]));
 	_hx_printf("  gateway: %s\r\n", inet_ntoa(pGenif->ip_gw[0]));
+	
+	/* Show source and destination if it's a tunnel. */
+	if (pGenif->link_type == lt_tunnel)
+	{
+		_hx_printf("  tunnel source: %s, ", inet_ntoa(pGenif->vti_source));
+		_hx_printf("destination: %s\r\n", inet_ntoa(pGenif->vti_destination));
+	}
 #endif
 
-	/* Show statistics counter of the genif. */
-	_hx_printf("  rx/tx/rx_bytes/tx_bytes: %d/%d/%d/%d\r\n",
-		pGenif->stat.rx_pkt,
-		pGenif->stat.tx_pkt,
-		pGenif->stat.rx_bytes,
-		pGenif->stat.tx_bytes);
-	_hx_printf("  rx_m/tx_m/rx_b/tx_b: %d/%d/%d/%d\r\n",
-		pGenif->stat.rx_mcast,
-		pGenif->stat.tx_mcast,
-		pGenif->stat.rx_bcast,
-		pGenif->stat.tx_bcast);
-	_hx_printf("  rx_err/tx_err: %d/%d\r\n",
-		pGenif->stat.rx_err,
-		pGenif->stat.tx_err);
+	/* Show genif's statistics info. */
+	ShowGenifStat(pGenif);
+
+	/* Show all child genif of this one. */
+	pGenifChild = pGenif->pGenifChild;
+	if (pGenifChild)
+	{
+		_hx_printf("  Child interface list:\r\n");
+	}
+	while (pGenifChild)
+	{
+		_hx_printf("    %s\r\n", pGenifChild->genif_name);
+		pGenifChild = pGenifChild->pGenifSibling;
+	}
 
 	/* Invoke driver specific show out routine. */
 	if (pGenif->specific_show)
@@ -811,6 +1046,7 @@ static unsigned long __ShowAllGenif()
 {
 	__GENERIC_NETIF* pGenif = NULL;
 	unsigned long buff_req = sizeof(__GENERIC_NETIF);
+	char if_status[32];
 	int ret_val = -1;
 
 	/* Allocate genif snapshot memory pool. */
@@ -847,14 +1083,23 @@ static unsigned long __ShowAllGenif()
 		break;
 	}
 	/* Show all genifs' brief info one by one. */
-	_hx_printf("        genif_name    genif_index    parent_index\r\n");
-	_hx_printf("  ----------------    -----------    ------------\r\n");
+	_hx_printf("        genif_name    genif_index    parent_index    link_status\r\n");
+	_hx_printf("  ----------------    -----------    ------------    ----------\r\n");
 	for(int i = 0; i < ret_val; i++)
 	{
-		_hx_printf("  %16s    %11d    %11d\r\n",
+		if (up == pGenif[i].link_status)
+		{
+			strcpy(if_status, "up");
+		}
+		else {
+			strcpy(if_status, "down");
+		}
+
+		_hx_printf("  %16s    %11d    %11d    %8s\r\n",
 			pGenif[i].genif_name,
 			pGenif[i].if_index,
-			pGenif[i].pGenifParent ? pGenif[i].pGenifParent->if_index : -1);
+			pGenif[i].pGenifParent ? pGenif[i].pGenifParent->if_index : -1,
+			if_status);
 	}
 __TERMINAL:
 	/* Release pGenif first. */
@@ -941,6 +1186,10 @@ static VOID __LinkStatusChange(__GENERIC_NETIF* pGenif,
 		 * forward on this interface.
 		 */
 		__NotifyLinkStatusChange(pGenif, TRUE);
+		
+		/* Notify routing manager of this state. */
+		RoutingManager.GenifStateChange(pGenif->genif_name, 
+			GENIF_STATE_LINKSTATUSDOWN);
 		goto __TERMINAL;
 	}
 	if (up == link_status)
@@ -955,11 +1204,92 @@ static VOID __LinkStatusChange(__GENERIC_NETIF* pGenif,
 		pGenif->link_speed = speed;
 		/* Notify all protocols bound to this genif. */
 		__NotifyLinkStatusChange(pGenif, FALSE);
+		RoutingManager.GenifStateChange(pGenif->genif_name,
+			GENIF_STATE_LINKSTATUSUP);
 		goto __TERMINAL;
 	}
 
 __TERMINAL:
 	return;
+}
+
+/*
+ * Set or change the configuration of genif.
+ *   config_type: Specifies what type configuration to set;
+ *   config_value: The associated value to this type of 
+ *                 configuration;
+ *   extra: If the parameters associated with the config type
+ *          can not convey on config_value, use this extension
+ *          to hold.
+ */
+static BOOL __SetGenifConfig(unsigned long genif_index,
+	unsigned long config_type,
+	unsigned long config_value,
+	void* extra)
+{
+	BOOL bResult = FALSE;
+	__GENERIC_NETIF* pGenif = NULL;
+	__NETWORK_PROTOCOL* pProto = NULL;
+	void* pIfState = NULL;
+	int bind_idx = 0;
+
+	pGenif = NetworkManager.GetGenifByIndex(genif_index);
+	if (NULL == pGenif)
+	{
+		goto __TERMINAL;
+	}
+
+	/* Process according configure type. */
+	switch (config_type)
+	{
+	case GENIF_CONFIG_DHCP:
+		for (bind_idx = 0; bind_idx < GENIF_MAX_PROTOCOL_BINDING; bind_idx++)
+		{
+			pProto = pGenif->proto_binding[bind_idx].pProtocol;
+			if (NULL == pProto)
+			{
+				continue;
+			}
+			pIfState = pGenif->proto_binding[bind_idx].pIfState;
+
+			if (config_value == 0)
+			{
+				/* Enable DHCP on genif. */
+				pProto->StartDHCP(pIfState);
+			}
+			if (config_value == 1)
+			{
+				/* Disable DHCP on genif. */
+				pProto->StopDHCP(pIfState);
+			}
+			if (config_value == 2)
+			{
+				/* Release dhcp configuration on genif. */
+				pProto->ReleaseDHCP(pIfState);
+			}
+		}
+		bResult = TRUE;
+		break;
+	case GENIF_CONFIG_MTU:
+		if (config_value > 0)
+		{
+			pGenif->genif_mtu = (uint16_t)config_value;
+			bResult = TRUE;
+		}
+		break;
+	default:
+		__LOG("[%s]unknown genif config type[%d]\r\n",
+			__func__, config_type);
+		break;
+	}
+
+__TERMINAL:
+	/* Release the genif object. */
+	if (pGenif)
+	{
+		NetworkManager.ReleaseGenif(pGenif);
+	}
+	return bResult;
 }
 
 /* Network manager object. */
@@ -982,4 +1312,5 @@ __NETWORK_MANAGER NetworkManager = {
 	__AddGenifAddress,      //AddGenifAddress.
 	__ShowGenif,            //ShowGenif.
 	__LinkStatusChange,     //LinkStatusChange.
+	__SetGenifConfig,       //SetGenifConfig.
 };

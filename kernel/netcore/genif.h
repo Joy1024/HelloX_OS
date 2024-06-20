@@ -54,6 +54,7 @@
 #include "netcfg.h"
 #include "lwip/ip_addr.h"
 #include "lwip/pbuf.h"
+#include "lwip/err.h"
 
 /* Constants for generic network interface. */
 #define GENIF_NAME_LENGTH  MAX_NETIF_NAME_LENGTH
@@ -61,6 +62,9 @@
 
 /* Maximal address could be asigned on genif. */
 #define GENIF_MAX_ADDRESS 4
+
+/* Default genif's name for system build in genifs. */
+#define GENIF_NAME_LOOP "loop_genif"
 
 /* Address type definitions. */
 #define NETWORK_ADDRESS_TYPE_NONE      0x00
@@ -86,6 +90,12 @@ typedef struct tag__COMMON_NETWORK_ADDRESS {
 	}Address;
 }__COMMON_NETWORK_ADDRESS;
 
+/* Flags of genif. */
+#define GENIF_FLAG_CAPTURE        (1 << 0)
+#define GENIF_FLAG_NAT            (1 << 1)
+#define GENIF_FLAG_DHCP           (1 << 2)
+#define GENIF_FLAG_LINKUP         (1 << 3)
+
 /* Link types of genif. */
 #define GENIF_LINKTYPE_UNKNOWN    0
 #define GENIF_LINKTYPE_ETHERNET   1
@@ -94,16 +104,36 @@ typedef struct tag__COMMON_NETWORK_ADDRESS {
 #define GENIF_LINKTYPE_PPPOS      4
 #define GENIF_LINKTYPE_TUNNEL     5
 #define GENIF_LINKTYPE_LOOPBACK   6
+/*
+ * Shadow generic netif. It's used to fit
+ * lwIP stack in current version. Each netif in lwIP stack, 
+ * a corresponding genif should be created and bind with it
+ * to fit hellox's new genif architecture. This genif is not
+ * physical interface, and is only used to fit lwIP(especially
+ * pppoe function), we called it shadow genif.
+ * Any network protocol should not bind to this type of genif.
+ * It will be obseleted in the future with lwIP.
+ */
+#define GENIF_LINKTYPE_SHADOW     7
 
 /* Link types. */
 enum __LINK_TYPE {
-	lt_unknown = GENIF_LINKTYPE_UNKNOWN,
+	lt_unknown	= GENIF_LINKTYPE_UNKNOWN,
 	lt_ethernet = GENIF_LINKTYPE_ETHERNET,
-	lt_vlanif = GENIF_LINKTYPE_VLANIF,
-	lt_pppoe = GENIF_LINKTYPE_PPPOE,
-	lt_pppos = GENIF_LINKTYPE_PPPOS,
-	lt_tunnel = GENIF_LINKTYPE_TUNNEL,
-	lt_loopback = GENIF_LINKTYPE_LOOPBACK
+	lt_vlanif	= GENIF_LINKTYPE_VLANIF,
+	lt_pppoe	= GENIF_LINKTYPE_PPPOE,
+	lt_pppos	= GENIF_LINKTYPE_PPPOS,
+	lt_tunnel	= GENIF_LINKTYPE_TUNNEL,
+	lt_loopback = GENIF_LINKTYPE_LOOPBACK,
+	lt_shadow	= GENIF_LINKTYPE_SHADOW,
+};
+
+/* Tunnel type if the genif is a VTI. */
+enum __VTI_TYPE {
+	vti_ipsec = 0,
+	vti_gre   = 1,
+	vti_l2tp  = 2,
+	vti_ht2   = 3,
 };
 
 /* Ethernet interface duplex mode. */
@@ -134,8 +164,8 @@ typedef struct tag__GENIF_STAT {
 	/* Layer2 counters. */
 	unsigned long tx_pkt;
 	unsigned long rx_pkt;
-	unsigned long tx_bytes;
-	unsigned long rx_bytes;
+	unsigned long long tx_bytes;
+	unsigned long long rx_bytes;
 	unsigned long tx_success;
 	unsigned long rx_success;
 	unsigned long tx_bcast;
@@ -178,6 +208,10 @@ struct __GENERIC_NETIF {
 	/* genif index. */
 	unsigned long if_index;
 
+#if defined(__CFG_SYS_SMP)
+	__SPIN_LOCK spin_lock;
+#endif
+
 	/* name,mtu,hw address,vlan ID. */
 	char genif_name[GENIF_NAME_LENGTH];
 	uint16_t genif_mtu;
@@ -200,6 +234,11 @@ struct __GENERIC_NETIF {
 	/* Private info for driver. */
 	LPVOID pGenifExtension;
 
+	/* Type in case of VTI. */
+	enum __VTI_TYPE vti_type;
+	/* Extension for VTI interface, such as SA in IPSec. */
+	LPVOID vti_extension;
+
 	/* 
 	 * Protocols that bind to this genif, and it's
 	 * interface specific state information.
@@ -216,6 +255,10 @@ struct __GENERIC_NETIF {
 
 	/* Protocol extension for this genif. */
 	LPVOID ip_proto_ext;
+
+	/* source/dest for VTI interface under IPv4. */
+	ip_addr_t vti_source;
+	ip_addr_t vti_destination;
 #endif
 
 #if defined(__CFG_NET_IPv6)
@@ -237,8 +280,15 @@ struct __GENERIC_NETIF {
 	LPVOID hpx_proto_ext;
 #endif
 
+	/* Packet capture functions support. */
+	int (*capture_callback)(struct __GENERIC_NETIF* pGenif,
+		struct pbuf* pkt, void* param);
+	void* capture_param;
+
 	/* Input and output routines. */
-	int (*genif_output)(struct __GENERIC_NETIF* pGenif, struct pbuf* pkt);
+	int (*genif_l2_output)(struct __GENERIC_NETIF* pGenif, struct pbuf* pkt);
+	int (*genif_l3_output)(struct __GENERIC_NETIF* pGenif, struct pbuf* pkt, 
+		__COMMON_NETWORK_ADDRESS* comm_addr);
 	int (*genif_input)(struct __GENERIC_NETIF* pGenif, struct pbuf* pkt);
 	/* Driver specific operation routine. */
 	int (*genif_ioctrl)(struct __GENERIC_NETIF* pGenif, unsigned long operations,
@@ -246,6 +296,15 @@ struct __GENERIC_NETIF {
 		LPVOID pOutputBuff, unsigned long output_sz);
 	/* Destructor of this genif. */
 	int (*genif_destructor)(struct __GENERIC_NETIF* pGenif);
+
+	/* 
+	 * Check if this genif can accept the packet. 
+	 * It's invoked when a packet is arrive in this interface,
+	 * or it's parent interface.
+	 * genif_input will be invoked if this routine returns TRUE.
+	 */
+	BOOL (*packet_for_me)(struct __GENERIC_NETIF* genif_parent,
+		struct __GENERIC_NETIF* genif_this, struct pbuf* pkt);
 
 	/*
 	 * Driver specific show routine,used for 
@@ -265,5 +324,30 @@ typedef struct __GENERIC_NETIF __GENERIC_NETIF;
 
 /* Destructor routine prototype. */
 typedef int(*__GENIF_DESTRUCTOR)(__GENERIC_NETIF* pGenif);
+
+/* 
+ * General IP input routine. 
+ * All incoming IP packet will be delivered to this routine
+ * to process. It's the replacement of tcpip_input for lwIP.
+ */
+err_t general_ip_input(struct pbuf *p, struct netif *inp);
+
+/*
+ * General IP output routine,it's used to initialize
+ * the genif_l3_output, if the interface is a common
+ * IP interface, no need special packet processing.
+ * For VTI or other genif with special packet processing,
+ * new genif_l3_output should be implemented to
+ * carry out special action on packets.
+ */
+int general_ip_output(__GENERIC_NETIF* pGenif, struct pbuf* pkt,
+	__COMMON_NETWORK_ADDRESS* comm_addr);
+
+/* 
+ * Apply all call backs of a genif. 
+ * It invokes the corresponding call back routine
+ * according genif flags.
+ */
+int genif_apply_callback(__GENERIC_NETIF* pGenif, struct pbuf* pkt);
 
 #endif //__GENIF_H__

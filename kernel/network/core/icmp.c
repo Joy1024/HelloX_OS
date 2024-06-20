@@ -293,8 +293,8 @@ icmp_time_exceeded(struct pbuf *p, enum icmp_te_type t)
 	iphdr = (struct ip_hdr*)p->payload;
 	strncpy(str_src, inet_ntoa(iphdr->src), 64);
 	strncpy(str_dest, inet_ntoa(iphdr->dest), 64);
-	__LOG("[%s]original hdr info:src = %s, dest = %s, proto = %d, ttl = %d, len = %d\r\n",
-		__func__, str_src, str_dest, iphdr->_proto, iphdr->_ttl, ntohs(iphdr->_len));
+	//__LOG("[%s]original hdr info:src = %s, dest = %s, proto = %d, ttl = %d, len = %d\r\n",
+	//	__func__, str_src, str_dest, iphdr->_proto, iphdr->_ttl, ntohs(iphdr->_len));
 	
 	icmp_send_response(p, ICMP_TE, t);
 }

@@ -36,6 +36,9 @@
  *
  */
 
+#include "routmgr/rtmgr.h"
+#include "netmgr.h"
+
 #include "lwip/opt.h"
 
 #include "lwip/def.h"
@@ -100,6 +103,75 @@ netif_loopif_init(struct netif *netif)
 }
 #endif /* LWIP_HAVE_LOOPIF */
 
+/* Input routine for loopback genif. */
+static int loopback_genif_input(__GENERIC_NETIF* pGenif, struct pbuf* p)
+{
+	return -1;
+}
+
+/* Layer 2 output routine for loopback genif. */
+static int loopback_genif_l2_output(__GENERIC_NETIF* pGenif, struct pbuf* p)
+{
+	return -1;
+}
+
+/*
+ * Initializes the genif that corresponding loopback netif.
+ * Loopback netif is created staticaly, it could not fit into
+ * hellox's network architecture, so we must fix it using this
+ * out of band method.
+ * The routine creates one genif, init it, and register it
+ * into system.
+ */
+static BOOL init_loopback_genif(struct netif* netif)
+{
+	__GENERIC_NETIF* pGenif = NULL;
+	BOOL bResult = FALSE;
+
+	/* Create a new netif. */
+	pGenif = NetworkManager.CreateGenif(NULL, NULL);
+	if (NULL == pGenif)
+	{
+		__LOG("can not create looback genif.\r\n");
+		goto __TERMINAL;
+	}
+
+	/* Init the genif. */
+	strcpy(pGenif->genif_name, GENIF_NAME_LOOP);
+	pGenif->genif_input = loopback_genif_input;
+	pGenif->genif_l2_output = loopback_genif_l2_output;
+	pGenif->link_type = lt_shadow;
+
+	/* Register genif into system. */
+	if (!NetworkManager.RegisterGenif(pGenif))
+	{
+		__LOG("can not register loopback genif.\r\n");
+		goto __TERMINAL;
+	}
+
+	/* Link genif and netif together. */
+	pGenif->proto_binding[0].pIfState = netif;
+	netif->pGenif = pGenif;
+
+	/* Set genif's ip addr manually. */
+	IP4_ADDR(&pGenif->ip_gw[0], 127, 0, 0, 1);
+	IP4_ADDR(&pGenif->ip_addr[0], 127, 0, 0, 1);
+	IP4_ADDR(&pGenif->ip_mask[0], 255, 0, 0, 0);
+
+	bResult = TRUE;
+
+__TERMINAL:
+	if (!bResult)
+	{
+		if (pGenif)
+		{
+			/* Release the genif. */
+			NetworkManager.ReleaseGenif(pGenif);
+		}
+	}
+	return bResult;
+}
+
 void
 netif_init(void)
 {
@@ -114,6 +186,11 @@ netif_init(void)
 #else  /* NO_SYS */
   netif_add(&loop_netif, &loop_ipaddr, &loop_netmask, &loop_gw, NULL, netif_loopif_init, tcpip_input);
 #endif /* NO_SYS */
+
+  /* Init the corresponding genif. */
+  init_loopback_genif(&loop_netif);
+
+  /* Pull up the loopback netif. */
   netif_set_up(&loop_netif);
 
 #endif /* LWIP_HAVE_LOOPIF */
@@ -318,6 +395,8 @@ netif_find(char *name)
 void
 netif_set_ipaddr(struct netif *netif, ip_addr_t *ipaddr)
 {
+  __GENERIC_NETIF* pGenif = NULL;
+
   /* TODO: Handling of obsolete pcbs */
   /* See:  http://mail.gnu.org/archive/html/lwip-users/2003-03/msg00118.html */
 #if LWIP_TCP
@@ -361,6 +440,12 @@ netif_set_ipaddr(struct netif *netif, ip_addr_t *ipaddr)
   snmp_delete_iprteidx_tree(0,netif);
   /* set new IP address to netif */
   ip_addr_set(&(netif->ip_addr), ipaddr);
+  /* Change the corresponding genif's IPv4 address. */
+  pGenif = netif->pGenif;
+  if (pGenif)
+  {
+	  ip_addr_set(&(pGenif->ip_addr[0]), ipaddr);
+  }
   snmp_insert_ipaddridx_tree(netif);
   snmp_insert_iprteidx_tree(0,netif);
 
@@ -383,7 +468,14 @@ netif_set_ipaddr(struct netif *netif, ip_addr_t *ipaddr)
 void
 netif_set_gw(struct netif *netif, ip_addr_t *gw)
 {
+  __GENERIC_NETIF* pGenif = NULL;
+
   ip_addr_set(&(netif->gw), gw);
+  pGenif = netif->pGenif;
+  if (pGenif)
+  {
+	  ip_addr_set(&(pGenif->ip_gw[0]), gw);
+  }
   LWIP_DEBUGF(NETIF_DEBUG | LWIP_DBG_TRACE | LWIP_DBG_STATE, ("netif: GW address of interface %c%c set to %"U16_F".%"U16_F".%"U16_F".%"U16_F"\n",
     netif->name[0], netif->name[1],
     ip4_addr1_16(&netif->gw),
@@ -404,9 +496,16 @@ netif_set_gw(struct netif *netif, ip_addr_t *gw)
 void
 netif_set_netmask(struct netif *netif, ip_addr_t *netmask)
 {
+  __GENERIC_NETIF* pGenif = NULL;
+
   snmp_delete_iprteidx_tree(0, netif);
   /* set new netmask to netif */
   ip_addr_set(&(netif->netmask), netmask);
+  pGenif = netif->pGenif;
+  if (pGenif)
+  {
+	  ip_addr_set(&(pGenif->ip_mask[0]), netmask);
+  }
   snmp_insert_iprteidx_tree(0, netif);
   LWIP_DEBUGF(NETIF_DEBUG | LWIP_DBG_TRACE | LWIP_DBG_STATE, ("netif: netmask of interface %c%c set to %"U16_F".%"U16_F".%"U16_F".%"U16_F"\n",
     netif->name[0], netif->name[1],
@@ -425,11 +524,24 @@ netif_set_netmask(struct netif *netif, ip_addr_t *netmask)
 void
 netif_set_default(struct netif *netif)
 {
+  __GENERIC_NETIF* pGenif = NULL;
+  ip_addr_t dest, mask;
+
+  dest.addr = IPADDR_ANY;
+  mask.addr = IPADDR_ANY;
+
   if (netif == NULL) {
     /* remove default route */
+	RoutingManager.del_iproute(&dest, &mask);
+
     snmp_delete_iprteidx_tree(1, netif);
   } else {
     /* install default route */
+    BUG_ON(NULL == netif->pGenif);
+	pGenif = netif->pGenif;
+	RoutingManager.add_iproute(&dest, &mask, ROUTE_METRIC_STATIC, NULL,
+		IP_ROUTE_TYPE_STATIC,
+		pGenif->genif_name);
     snmp_insert_iprteidx_tree(1, netif);
   }
   netif_default = netif;

@@ -121,7 +121,7 @@
  *    2 byte alignment -> #define MEM_ALIGNMENT 2
  */
 #ifndef MEM_ALIGNMENT
-#define MEM_ALIGNMENT                   1
+#define MEM_ALIGNMENT                   SYSTEM_BYTE_ALIGN
 #endif
 
 /**
@@ -1606,7 +1606,7 @@
  * CHAP_SUPPORT==1: Support CHAP.
  */
 #ifndef CHAP_SUPPORT
-#define CHAP_SUPPORT                    0
+#define CHAP_SUPPORT                    1
 #endif
 
 /**

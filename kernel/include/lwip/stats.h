@@ -44,7 +44,7 @@ extern "C" {
 #if LWIP_STATS
 
 #ifndef LWIP_STATS_LARGE
-#define LWIP_STATS_LARGE 0
+#define LWIP_STATS_LARGE 1
 #endif
 
 #if LWIP_STATS_LARGE
@@ -60,6 +60,8 @@ struct stats_proto {
   STAT_COUNTER recv;             /* Received packets. */
   STAT_COUNTER fw;               /* Forwarded packets. */
   STAT_COUNTER drop;             /* Dropped packets. */
+  STAT_COUNTER ctx_xmit;         /* Xmit in tcpip_output. */
+  STAT_COUNTER ctx_xmit_err;     /* Xmit in tcpip_output error. */
   STAT_COUNTER chkerr;           /* Checksum error. */
   STAT_COUNTER lenerr;           /* Invalid length error. */
   STAT_COUNTER memerr;           /* Out of memory error. */

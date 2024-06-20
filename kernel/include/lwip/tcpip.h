@@ -86,8 +86,15 @@ err_t tcpip_apimsg_lock(struct api_msg *apimsg);
 #endif /* LWIP_TCPIP_CORE_LOCKING */
 #endif /* LWIP_NETCONN */
 
+/* 
+ * Input and output a ip packet, they runs
+ * in context of tcpip main thread.
+ */
 err_t tcpip_input(struct pbuf *p, struct netif *inp);
-err_t tcpip_output(struct pbuf *p, struct netif *out_if);
+err_t tcpip_output(struct pbuf *p, struct netif *out_if,
+	BOOL send_direct,
+	ip_addr_t* src, ip_addr_t* dst,
+	u8_t ttl, u8_t tos, u8_t protocol);
 
 #if LWIP_NETIF_API
 err_t tcpip_netifapi(struct netifapi_msg *netifapimsg);

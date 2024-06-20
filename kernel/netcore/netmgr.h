@@ -24,6 +24,10 @@
 #include <StdAfx.h>
 #include "genif.h"
 
+/* Genif configure type. */
+#define GENIF_CONFIG_DHCP 0x01
+#define GENIF_CONFIG_MTU  0x02
+
 /* Network manager object. */
 typedef struct tag__NETWORK_MANAGER{
 	/* Operations that network manager can offer. */
@@ -90,7 +94,28 @@ typedef struct tag__NETWORK_MANAGER{
 		enum __DUPLEX duplex,
 		enum __ETHERNET_SPEED speed);
 
+	/* Change genif's configurations. */
+	BOOL (*SetGenifConfig)(unsigned long genif_index,
+		unsigned long config_type,
+		unsigned long config_value,
+		void* extra);
+
 }__NETWORK_MANAGER;
+
+/* Load network configure database into memory. */
+BOOL LoadNetworkConfig();
+
+/* Release network configure information in memory. */
+void ReleaseNetworkConfig();
+
+/*
+ * Get a specified genif's configure information
+ * from in memory config database.
+ */
+BOOL GetGenifConfig(__GENERIC_NETIF* pGenif);
+
+/* Install static route given the out-going genif. */
+BOOL InstallGenifRoute(const char* genif_name);
 
 /* Global network manager object. */
 extern __NETWORK_MANAGER NetworkManager;

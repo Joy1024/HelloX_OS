@@ -368,8 +368,9 @@ static void __OS_Entry_BSP()
 #ifdef __CFG_SYS_CONSOLE
 	if(!Console.Initialize(&Console))
 	{
-		pszErrorMsg = "INIT ERROR: Can not initialize Console object.";
-		goto __TERMINAL;
+		//pszErrorMsg = "INIT ERROR: Can not initialize Console object.";
+		//goto __TERMINAL;
+		_hx_printk("WARNING: No COM device detected.\r\n");
 	}
 #endif
 

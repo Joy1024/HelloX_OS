@@ -168,58 +168,61 @@ __TERMINAL:
 	return bResult;
 }
 
-//Convert a short entry to general file struct,which is FS_FIND_DATA.
-BOOL ConvertShortEntry(__FAT32_SHORTENTRY* pfse,FS_FIND_DATA* pffd)
+/*
+ * Convert a short entry to general file 
+ * struct,which is FS_FIND_DATA.
+ */
+BOOL ConvertShortEntry(__FAT32_SHORTENTRY* pfse, FS_FIND_DATA* pffd)
 {
-	BOOL    bResult    = FALSE;
-	CHAR*   pExtStart  = NULL;
-	CHAR*   pStart     = NULL;
-	int     i,end,j;	
+	BOOL    bResult = FALSE;
+	CHAR*   pExtStart = NULL;
+	CHAR*   pStart = NULL;
+	int     i, end, j;
 	WORD    ch = 0x0700;
 
-	if((NULL == pfse) || (NULL == pffd))
+	if ((NULL == pfse) || (NULL == pffd))
 	{
 		goto __TERMINAL;
 	}
 
-	pffd->dwFileAttribute   = pfse->FileAttributes;
-	pffd->nFileSizeLow      = pfse->dwFileSize;
-		
+	pffd->dwFileAttribute = pfse->FileAttributes;
+	pffd->nFileSizeLow = pfse->dwFileSize;
+
 	//Process file's name now.
-	pStart    = &pfse->FileName[0];
+	pStart = &pfse->FileName[0];
 	pExtStart = &pfse->FileName[8];
 	i = 0;
-	while(pStart < pExtStart)
+	while (pStart < pExtStart)
 	{
-		if((*pStart == ' ') || (0 == *pStart))
+		if ((*pStart == ' ') || (0 == *pStart))
 		{
-			pStart ++;
+			pStart++;
 			continue;
 		}
 		pffd->cAlternateFileName[i] = *pStart;
-		pStart ++;
-		i ++;
+		pStart++;
+		i++;
 	}
 	end = i;
 	i += 1;
-	for(j = 0;j < 3;j++)
+	for (j = 0; j < 3; j++)
 	{
-		if((' ' == *pExtStart) || (0 == *pExtStart)) //Skip the space.
+		if ((' ' == *pExtStart) || (0 == *pExtStart)) //Skip the space.
 		{
-			pExtStart ++;
+			pExtStart++;
 			continue;
 		}
 		pffd->cAlternateFileName[i] = *pExtStart;
-		i ++;
-		pExtStart ++;
+		i++;
+		pExtStart++;
 	}
-	if(i == end + 1)  //Without any extension.
+	if (i == end + 1)  //Without any extension.
 	{
 		bResult = TRUE;
 		pffd->cAlternateFileName[end] = 0;
 		goto __TERMINAL;
 	}
-	pffd->cAlternateFileName[i]   = 0;
+	pffd->cAlternateFileName[i] = 0;
 	pffd->cAlternateFileName[end] = '.';
 	bResult = TRUE;
 

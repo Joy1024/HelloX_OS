@@ -15,9 +15,42 @@
     <Filter Include="Header Files\arch">
       <UniqueIdentifier>{e65f62bf-3a62-4653-97a1-455b6d37d88f}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Header Files\sockets">
+      <UniqueIdentifier>{5c99c028-662a-4808-9382-47b56f1e7b1f}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\sockets">
+      <UniqueIdentifier>{9b758894-a797-47da-8ae8-6308b29eb5f8}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\ptmalloc">
+      <UniqueIdentifier>{45f900f4-cdec-4b4d-b0f7-9ee5564b2f96}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\ptmalloc">
+      <UniqueIdentifier>{ab0fd087-83a9-432b-8dd7-0d298b1fd6af}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\cJSON">
+      <UniqueIdentifier>{45784b2b-82d4-489a-98a2-d80b3a17615b}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\cJSON">
+      <UniqueIdentifier>{451924a2-3340-458c-8a5e-9adde73bcf69}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\regexp">
+      <UniqueIdentifier>{4755efe3-212b-4352-b2bb-282d21f06ce6}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\wildcard">
+      <UniqueIdentifier>{34135e6a-99ef-4355-ba4d-086f3edbd4d2}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\regexp">
+      <UniqueIdentifier>{e18d7510-3aff-430d-9fad-1acc6d764805}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\wildcard">
+      <UniqueIdentifier>{47b12735-6b9f-483f-a9bf-2c2db281f77d}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <Text Include="ReadMe.txt" />
+    <Text Include="todo.txt">
+      <Filter>Source Files</Filter>
+    </Text>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="ctype.h">
@@ -89,16 +122,7 @@
     <ClInclude Include="sys\cpu.h">
       <Filter>Header Files\sys</Filter>
     </ClInclude>
-    <ClInclude Include="kapi.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="stdbool.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="sockets.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="ip_addr.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="arch\bpstruct.h">
@@ -109,6 +133,48 @@
     </ClInclude>
     <ClInclude Include="inet.h">
       <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="__hxcomm.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="hellox.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="sockets\genif.h">
+      <Filter>Header Files\sockets</Filter>
+    </ClInclude>
+    <ClInclude Include="sockets\hx_eth.h">
+      <Filter>Header Files\sockets</Filter>
+    </ClInclude>
+    <ClInclude Include="sockets\hx_inet.h">
+      <Filter>Header Files\sockets</Filter>
+    </ClInclude>
+    <ClInclude Include="sockets\ip_addr.h">
+      <Filter>Header Files\sockets</Filter>
+    </ClInclude>
+    <ClInclude Include="sockets\sockets.h">
+      <Filter>Header Files\sockets</Filter>
+    </ClInclude>
+    <ClInclude Include="sockets\sockopt.h">
+      <Filter>Header Files\sockets</Filter>
+    </ClInclude>
+    <ClInclude Include="ptmalloc\malloc.h">
+      <Filter>Header Files\ptmalloc</Filter>
+    </ClInclude>
+    <ClInclude Include="sys\ide.h">
+      <Filter>Header Files\sys</Filter>
+    </ClInclude>
+    <ClInclude Include="cJSON\cJSON.h">
+      <Filter>Header Files\cJSON</Filter>
+    </ClInclude>
+    <ClInclude Include="float.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="regexp\regexp.h">
+      <Filter>Header Files\regexp</Filter>
+    </ClInclude>
+    <ClInclude Include="wildcard\wildcard.h">
+      <Filter>Header Files\wildcard</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -140,9 +206,6 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="string.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="sysmem.c">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="time.c">
@@ -214,17 +277,38 @@
     <ClCompile Include="sched.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="kapi.c">
+    <ClCompile Include="hellox.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="sockets.c">
+    <ClCompile Include="sockets\hx_eth.c">
+      <Filter>Source Files\sockets</Filter>
+    </ClCompile>
+    <ClCompile Include="sockets\hx_inet.c">
+      <Filter>Source Files\sockets</Filter>
+    </ClCompile>
+    <ClCompile Include="sockets\ip_addr.c">
+      <Filter>Source Files\sockets</Filter>
+    </ClCompile>
+    <ClCompile Include="sockets\socket.c">
+      <Filter>Source Files\sockets</Filter>
+    </ClCompile>
+    <ClCompile Include="ptmalloc\malloc.c">
+      <Filter>Source Files\ptmalloc</Filter>
+    </ClCompile>
+    <ClCompile Include="cJSON\cJSON.c">
+      <Filter>Source Files\cJSON</Filter>
+    </ClCompile>
+    <ClCompile Include="strtod.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="ip_addr.c">
+    <ClCompile Include="scanf.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="inet.c">
-      <Filter>Source Files</Filter>
+    <ClCompile Include="wildcard\wildcard.c">
+      <Filter>Source Files\wildcard</Filter>
+    </ClCompile>
+    <ClCompile Include="regexp\regexp.c">
+      <Filter>Source Files\regexp</Filter>
     </ClCompile>
   </ItemGroup>
 </Project>

@@ -44,7 +44,7 @@ int strlen(const char* s);
 
 //Array bound guaranteed string operations.
 char* strncpy(char *dest, const char *src, unsigned int n);
-int strncmp(char * s1, char * s2, size_t n);
+int strncmp(const char * s1, const char * s2, size_t n);
 
 //Flags to control the trimming.
 #define TRIM_LEFT    0x1
@@ -61,5 +61,15 @@ void ToCapital(LPSTR lpszString);
 
 //Find the first bit in a given integer.
 int ffs(int x);
+
+/* 
+ * Find a string in string array, by 
+ * using binary search algorithm. 
+ * Return the index if found, -1
+ * will be returned when failure.
+ */
+int str_qsearch(const char* src, 
+	const char* array[], int max_length,
+	size_t array_sz);
 
 #endif //__STRING_H__

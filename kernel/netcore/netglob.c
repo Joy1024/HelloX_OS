@@ -19,6 +19,7 @@
 #include <StdAfx.h>
 #include <string.h>
 
+#include "lwip/inet.h"
 #include "netcfg.h"
 #include "netmgr.h"
 #include "netglob.h"
@@ -42,6 +43,7 @@ static void ResetDNSServer()
 static BOOL __GetNetworkInfo(__SYSTEM_NETWORK_INFO* pNetInfo)
 {
 	BOOL bResult = FALSE;
+	ip_addr_t addr;
 
 	BUG_ON(NULL == pNetInfo);
 	if (pNetInfo->version != 1)
@@ -52,8 +54,15 @@ static BOOL __GetNetworkInfo(__SYSTEM_NETWORK_INFO* pNetInfo)
 	memset(pNetInfo, 0, sizeof(__SYSTEM_NETWORK_INFO));
 	pNetInfo->version = 1;
 	pNetInfo->genif_num = NetworkManager.genif_num;
-	pNetInfo->v4dns_p = NetworkGlobal.dns_primary.addr;
-	pNetInfo->v4dns_s = NetworkGlobal.dns_secondary.addr;
+	//pNetInfo->v4dns_p = NetworkGlobal.dns_primary.addr;
+	//pNetInfo->v4dns_s = NetworkGlobal.dns_secondary.addr;
+
+	/* Use static specified global DNS server. */
+	inet_aton("8.8.8.8", &addr);
+	pNetInfo->v4dns_p = addr.addr;
+	inet_aton("8.8.4.4", &addr);
+	pNetInfo->v4dns_s = addr.addr;
+
 	/* Return domain name. */
 	strncpy(pNetInfo->domain_name, NetworkGlobal.domain_name, DOMAIN_NAME_LENGTH);
 

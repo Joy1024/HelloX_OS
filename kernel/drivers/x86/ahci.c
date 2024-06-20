@@ -887,7 +887,7 @@ static BOOL __init_ahci_controller(__AHCI_CONTROLLER* pController)
 	{
 		ahci_back = CreateKernelThread(0,
 			KERNEL_THREAD_STATUS_READY,
-			PRIORITY_LEVEL_HIGH,
+			AHCI_BG_THREAD_PRIORITY,
 			__ahci_back_ground,
 			NULL, NULL,
 			AHCI_BG_THREAD_NAME);

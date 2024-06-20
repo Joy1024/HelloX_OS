@@ -1,0 +1,178 @@
+Loading process of version 1.88:
+1. The boot sector's source file is fat32bs.asm, which could be compiled int bootsect by nasm;
+2. The bootsector loads hellox's kernel(named osloadr.bin) from root directory of active
+   part in harddisk or USB stick;
+3. Realinit.bin, miniker.bin, and master.bin are combined into osloadr.bin file, and be put
+   into the root directory of bootable storage;
+4. bootsector load the whole osloadr.bin file into memory, and jump to it to continue run;
+5. The memory layout after bootsector loaded osloadr.bin is in mlayout.h file;
+
+NOTES:
+1. The realinit.bin is 4K, miniker.bin's file size is 48K, but it's filled to 64K by batch.bat;
+2. So the loader is no need to fill the 16K space between miniker.bin and master.bin, since
+   batch.bat file do it;
+3. Why the miniker.bin is not 64K but 48K, is a history pending issue, and should not exist
+   further.
+
+Issues of current loading mechanism:
+1. The kernel's size must not exceed 567K, limited by the memory boundary of real mode;
+2. ...
+
+New loading process:
+1. The boot sector's source code should keep untouched, since it's very complicated yet;
+2. A new module, named newldr.bin/newldr.asm, is created to hold new loader functions;
+3. The new loader is at the position of old master.bin both in file and in memory. Batch.bat
+   should be revised to create the bin file;
+4. Combine realinit.bin(@0x1000), miniker.bin(@0x2000) and newldr.bin(@0x12000, 72K) together, 
+   as osloadr.bin file, master.bin will be loaded later by new loader;
+5. Master.bin will be changed as oskernl.bin(OS kernel);
+6. So there are two stages of loading process:
+   a) first loading stage: boot sector loads osloadr.bin into memory;
+   b) Then the second loading stage: osloader(newldr.bin) loads oskernl.bin into memory.
+
+Why treat new loader as a dedicated module:
+1. At the very begining we consider add functions in realinit, but it's very complicated
+   since:
+   a) The new loader will use code lines from fat32bs.asm to read fat32 root, the
+      code size may exceed the reserved realinit space;
+   b) Even the code size is OK, data buffers of fat32 reading is in another segment, so
+      data accessing cross segment is unvoidable, the fucking cross segment data accessing
+	  may cause fucking issues in debugging process;
+2. So in order to make it easy, just use a new module with new memory space to implement the
+   new loader, just to avoid the fucking segment mechanism in fucking real mode;
+3. All code, data, stack, are put into one 64K segment, it's enough, and easy relatively.
+
+So we should revise realinit.bin:
+1. Just jump to new loader(0x12000) after finish the real mode initialization;
+2. All protected mode's code, should be moved to new loader;
+3. The whole DEF_PM32_BEGIN labeled code lines should be moved to new loader, these
+   code lines response for moving mini-kernel and master(no need in new loader) into
+   upper 1M memory space;
+4. The following code lines:
+//----------------------------------------------------------------------------
+   call np_act20addr
+ 
+    xor eax,eax
+    mov ax,ds
+    shl eax,0x04
+    add eax,gl_gdt_content       ;;Form the line address of the gdt content.
+    mov dword [gl_gdt_base],eax
+    lgdt [gl_gdt_ldr]            ;;Now,load the gdt register.
+ 
+    mov ax,okmsg                 ;;--------- ** debug ** -----------------
+    call np_strlen
+    mov ax,okmsg
+    call np_printmsg
+ 
+    mov eax,cr0
+    or eax,0x01                  ;;Set the PE bit of CR0 register.
+    mov cr0,eax                  ;;Enter the protected mode.
+ 
+	;;Jump to protected mode's code.
+	jmp dword 0x08 : DEF_PM32_BEGIN
+//---------------------------------------------------------------------------
+should be changed to:
+//---------------------------------------------------------------------------
+	call np_act20addr
+	jmp 0x1200 : 0000;
+//---------------------------------------------------------------------------
+The deleted code lines, should be implemented in new loader.
+
+Add the new loader function as following:
+1. A new source file named newldr.asm is added into project, under arch/x86 directory;
+2. Re-initialize all segment registers to the segment 0x1200, include ss/sp(since the
+   sp in realinit may cause overwritting of first reserved 4k space);
+3. Write a new function named load_kernel, and invoke it to load master(renamed to oskernl.bin)
+   into memory(first load to low 1M space, then move to upper 1M space by switching to
+   protect mode);
+4. All segment descriptors defined in realinit should be copied to new loader with unchanged,
+   and init gdtr(lgdt) as real init(above code lines), then switch to protect mode;
+5. Then copy the miniker module to upper 1M space, by reusing the code lines under gl_pm32_begin
+   label in realinit.asm;
+6. Then just jump to miniker.
+
+The new implemented routine load_kernel:
+1.1 Find the first cluster of kernel(oskernl.bin, i.g, master.bin) and load it into
+    low end memory(The original position of master in real mode). The loading process
+    could reuse code lines from fat32bs.asm, and even just reuse the data. The code
+	and data are relocated into 0x97C00 appr, refer fat32bs.asm;
+1.2 When load enough sectors, such as 640(320K), then switch to protected mode and
+    copy it to upper space(1M+64K+x, x is the byte size loaded);
+1.3 A sub routine named relocate_kernel should be implemented, it response for
+    relocating the loaded kernel to upper position. This routine should switch to
+    protect mode, copy data, and switch back to real mode;
+1.4 After finishing loading the os kernel, then return;
+
+Progress in 2022.05.04:
+1. Batch.bat file has been modified, to copy master.bin into \bin direct, rename to
+   oskernl.bin, and copy it into \bin\import directory. HelloX will see this file
+   in root;
+2. New VM instance(HelloX v1.89) created and tested OK under VirtualBox;
+3. [CLUSTER] is same as [BPB+RootCluster], it's the root cluster number in BPB, 
+   and will be used as FAT cluster temporary buffer in fat32bs.asm;
+4. Rename the fat32bs.asm into nl_src.txt(under kernel/doc), and revise it before
+   move to realinit.asm file, so just check this file to continue...
+
+Progress in 2022.05.14:
+1. The process of switching back from protect mode to realmode as follows:
+   a) Jump to 16 bits code by loading a 16bits segment descriptor, as following:
+      jmp 0x38 : 4096 + __16BIT_ENTRY ;Jump to 16 bits code. //realinit.asm
+	  where: 0x38 is the offset of 16bits code segment(defined in miniker.asm):
+	  gl_gdt_code16:
+							dw 0xFFFF
+                            dw 0x0000
+                            db 0x00
+                            dw 0x0098
+                            db 0x00
+   b) The flush the segment descriptor cache by following code lines:
+      mov bx,0x30
+      mov ds,bx
+      mov ss,bx
+	  ...... //in realinit.asm
+	  where: 0x30 is the offset of normal code segment defined in miniker.asm;
+
+   c) Then just switch to real mode by clearing PE bit and jump to 16 bits code:
+       mov ebx,cr0
+       and bl,0xFE ;Clear PE bit
+       mov cr0,ebx
+       jmp 0x100 : __REAL_MODE_ENTRY  ;Jump to real mode.
+	   //in realinit.asm.
+
+TO-DO:
+1. Create newldr.asm file, and copy segment descriptors and other code lines from
+   realinit.asm, build it as newldr.bin; --done
+2. Modify batch.bat file, compile newldr.asm, and use newldr.bin to replace master.bin, 
+   to link the new osloader.bin; --done
+3. Write a testing function with printing in newldr.asm, to make sure this module 
+   could work; --done
+4. Implement load_kernel routine framework, show out loading message; --done;
+5. Save boot device number in new loader module; -- done;
+6. Implement a routine, switch to protect mode, copy some data, and then switch back
+   to real mode. All registers should be saved in this routine, so it's transparent to
+   the caller code; --done
+7. Implement a new routine named copy_to_upper, this routine copies content in low 1M
+   memory into upper 1M memory. Use a static global variable to save the position in
+   protect mode where data should be copied, and accumulate the copied amount of data size
+   after each data moving; -- postponed
+8. Implement the fat32 reading code by refering fat32bs.asm, and load oskernl.bin into 
+   memory. Reuse the partition table loaded by boot sector, which position is defined
+   as MBR in fat32bs, relative to 0x9000(segment). Just allocate a local data buffer to
+   hold it, and copy it to data buffer from MBR;
+   1) Copy error handling routine, dapLoad, related error code definitions, into newldr.asm
+      and pass compiling; --done
+   2) Port and adjust lnc routine to newldr.asm; -- done;
+   3) Move MBR analyzing code into newldr.asm, to get the root cluster number of FAT32; --done
+   4) Move loadBPB code and adjust it; --done;
+   5) Move file searching and loading code into newldr.asm, to load kernel file; --done
+   6) TS:
+      a) Exception when running, sames that the miniker or master not loaded correctly;
+	  b) Jump to real address of miniker, sames OK, should trouble shotting farther;
+	  c) It seems lgdt[...] instruction in miniker.bin leads issue, sames the content
+	     in upper 1M is not correct, maybe caused by protect_copy routine;
+	  d) It goes to master when comment lgdt instruction in miniker.bin;
+	  e) All files, include miniker.asm, realinit.asm, are keep on target state;
+	  -- issue solved, it's lead by missing of ds register's initialization.
+9. Implement the load_kernel routine according above's description, and do not forget
+   copy miniker.bin to 1M location before switch to it;
+10. Test the whole new loader function; --done
+

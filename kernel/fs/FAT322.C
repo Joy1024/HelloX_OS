@@ -86,7 +86,7 @@ DWORD FatDeviceCreate(__COMMON_OBJECT* lpDrv, __COMMON_OBJECT* lpDev,
 	}
 	/* Try to open the parent directory. */
 	if (!GetDirEntry((__FAT32_FS*)pFatDevice->lpDevExtension, 
-		DirName, &DirShortEntry, NULL, NULL))
+		DirName, &DirShortEntry, NULL, NULL, NULL))
 	{
 		PrintLine("Get parent dir fail.");
 		return FALSE;

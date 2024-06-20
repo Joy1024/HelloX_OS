@@ -353,17 +353,33 @@ static void SC_DisConnectInterrupt(__SYSCALL_PARAM_BLOCK* pspb)
 static void SC_VirtualAlloc(__SYSCALL_PARAM_BLOCK* pspb)
 {
 	__PROCESS_OBJECT* pProcess = ProcessManager.GetCurrentProcess((__COMMON_OBJECT*)&ProcessManager);
-	unsigned long ulAllocFlags = 0;
+	unsigned long ulAllocFlags = 0, permitted = 0;
 	__VIRTUAL_MEMORY_MANAGER* pVmmMgr = NULL;
 
 	BUG_ON(NULL == pProcess);
 	pVmmMgr = pProcess->pMemMgr;
 	BUG_ON(NULL == pVmmMgr);
 
-	/* Allocate from user space,set allocation flags accordingly. */
+	/* 
+	 * Check allocat flags, only user space
+	 * is permitted since. 
+	 */
+	permitted = VIRTUAL_AREA_ALLOCATE_USERSPACE |
+		VIRTUAL_AREA_ALLOCATE_STACK |
+		VIRTUAL_AREA_ALLOCATE_USERAPP |
+		VIRTUAL_AREA_ALLOCATE_USERHEAP |
+		VIRTUAL_AREA_ALLOCATE_USERLIB,
 	ulAllocFlags = (unsigned long)PARAM(2);
-	ulAllocFlags &= (~VIRTUAL_AREA_ALLOCATE_SPACE_MASK);
-	ulAllocFlags |= VIRTUAL_AREA_ALLOCATE_USERSPACE;
+	if ((ulAllocFlags & permitted) == 0)
+	{
+		/* 
+		 * Allocate flags not specified, use
+		 * user space as default.
+		 */
+		ulAllocFlags |= VIRTUAL_AREA_ALLOCATE_USERSPACE;
+	}
+	//ulAllocFlags &= (~VIRTUAL_AREA_ALLOCATE_SPACE_MASK);
+	//ulAllocFlags |= VIRTUAL_AREA_ALLOCATE_USERSPACE;
 
 	SYSCALL_RET = (uint32_t)pVmmMgr->VirtualAlloc(
 		(__COMMON_OBJECT*)pVmmMgr,

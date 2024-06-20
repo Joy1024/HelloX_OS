@@ -21,6 +21,8 @@
 #include "ethmgr.h"
 #include "netglob.h"
 #include "netmgr.h"
+#include "routmgr/rtmgr.h"
+#include "cap/capture.h"
 
 #ifdef __CFG_NET_PPPOE
 #include "pppox/oemgr.h"
@@ -31,6 +33,10 @@
 #endif
 
 #include "services/ttysvr.h"
+
+#ifdef __CFG_NET_IPSEC
+extern BOOL __ipsec_init();
+#endif
 
 /*
  * Unify entry point of network subsystem.
@@ -64,6 +70,23 @@ BOOL Net_Entry(VOID* pArg)
 	}
 #endif
 
+	/* Initialize the routing manager. */
+	bResult = RoutingManager.Initialize(&RoutingManager);
+	if (!bResult)
+	{
+		_hx_printk("  Initi routing manager failed.\r\n");
+		goto __TERMINAL;
+	}
+
+#ifdef __CFG_NET_IPSEC
+	bResult = __ipsec_init();
+	if (!bResult)
+	{
+		_hx_printf("  Init ipsec failed.\r\n");
+		goto __TERMINAL;
+	}
+#endif
+
 #ifdef __CFG_NET_DHCP_SERVER
 	/* start dhcp server thread. */
 	bResult = start_dhcp_server();
@@ -79,6 +102,9 @@ BOOL Net_Entry(VOID* pArg)
 	{
 		_hx_printk("  Start tty service fail.\r\n");
 	}
+
+	/* Initialize packet capturing function. */
+	CaptureInitialize();
 
 	bResult = TRUE;
 __TERMINAL:

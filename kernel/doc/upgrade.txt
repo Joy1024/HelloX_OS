@@ -1,21 +1,30 @@
 Upgrade process through TFTP function:
 Preparation:
 1. Compile any kernel or application modules, make them ready on PC;
-2. Makre sure the TFTP client is installed on local PC;
+2. Make sure the TFTP client is installed on local PC;
 3. Network connection between local PC and hellox box is established;
 4. Disable windows firewall on local PC(or set the network as no-public);
-5. Make sure tftpsrv.exe(or examapp.exe) is in C: directory of hellox.
+5. Make sure tftpsrv.exe(or examapp.exe) is in C:\ directory of hellox.
 
-Procedures for upgrade:
+Procedures for upgrade HelloX to version 1.89:
 1. Start TFTP server on hellox: loadapp c:\tftpsrv.exe 69 &;
 2. Run tftp client and put the target file into hellox server, for example:
-   tftp 192.168.43.95 put osloadr.bin hxldr.bin
+   tftp 192.168.43.95 put osloadr.bin hxldr.bin //Put osloadr.bin to hellox, if
+                                                //os loader is revised.
+
+   tftp 192.168.43.95 put oskernl.bin hxkernl.bin //Put kernel file to hellox.
    in order to avoid the failure of xfer that lead kernel file cruption, use
-   another name when put to server;
-3. The rename the kernel file as following:
-   3.1 Delete the old version of kernel file;
-   3.2 Rename the hxldr.bin to osloadr.bin(using copy command);
-4. The kernel file in hellox will be the new one;
+   another name when put to server. So even the xfer failure, you can reload
+   hellox correctly;
+   NOTE!!!: Please turn off windows firewall on the nework, otherwise failure may
+   occur.
+3. Then rename the kernel files as following:
+   3.1 Delete the old version of osloadr and kernel file;
+   3.2 Rename the hxldr.bin to osloadr.bin(copy hxldr.bin osloadr.bin),
+       and rename hxkernl.bin to oskernl.bin(same as above);
+4. The kernel files in hellox will be the new ones;
 5. Update any other application or module through the same procedure;
-6. Check if the files are put OK through dir command;
-7. Reload hellox, new version should work;
+6. Check if the files are put OK through dir command, make sure osloadr.bin,
+   oskernl.bin, tftpsrv.exe are in root directory;
+7. Upload configure files under C:\SYSCFG\ directory if not exist;
+8. Reload hellox, new version should work;

@@ -19,6 +19,8 @@
 
 #ifdef __I386__  //Only available in x86 based PC platform.
 
+#include "../arch/x86/bios.h"
+
 INT_HANDLER SetGeneralIntHandler(__GENERAL_INTERRUPT_HANDLER TimerHandler)
 {
 #ifdef __GCC__
@@ -446,7 +448,8 @@ VOID __BUG(LPSTR lpszFileName,DWORD dwLineNum)
 		_hx_printf("Current kthread: %s\r\n",
 			__CURRENT_KERNEL_THREAD->KernelThreadName);
 	}
-	/* Current CPU dive into a halt state. */
+#if (!BUG_ON_REBOOT)
+	/* Just put current CPU into halt. */
 	__DISABLE_LOCAL_INTERRUPT(dwFlags);
 	while (TRUE)
 	{
@@ -454,6 +457,17 @@ VOID __BUG(LPSTR lpszFileName,DWORD dwLineNum)
 		HaltSystem();
 	}
 	__RESTORE_LOCAL_INTERRUPT(dwFlags);
+#else
+	/* Should reboot system. */
+	__DISABLE_LOCAL_INTERRUPT(dwFlags);
+	for (int i = 0; i < 30; i++)
+	{
+		/* Delay 5 seconds. */
+		_hx_printf("-");
+		__MicroDelay(1000000);
+	}
+	BIOSReboot();
+#endif 
 }
 
 /* Print logging header information,such as date,time,level... */

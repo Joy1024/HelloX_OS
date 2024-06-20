@@ -35,7 +35,7 @@
     /* 7.18.1.1 */
 
 #ifdef __GCC__
-          typedef long int		__int64;
+          typedef long long		__int64;
 #endif
 
     /* exact-width signed integer types */

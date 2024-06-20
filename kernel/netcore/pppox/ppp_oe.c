@@ -378,6 +378,7 @@ pppoe_dispatch_disc_pkt(struct netif *netif, struct pbuf *pb)
         sc = pppoe_find_softc_by_hunique((u8_t*)pb->payload + off + sizeof(pt), len, netif);
         if (sc != NULL) {
           snprintf(devname, sizeof(devname), "%c%c%"U16_F, sc->sc_ethif->name[0], sc->sc_ethif->name[1], sc->sc_ethif->num);
+		  _hx_printf("%s: devname = %s\r\n", __func__, devname);
         }
         break;
       case PPPOE_TAG_ACCOOKIE:
@@ -535,6 +536,9 @@ breakbreak:;
 	  _hx_sys_untimeout(pppoe_timeout, sc, __line__);
       PPPDEBUG(LOG_DEBUG, ("pppoe: %c%c%"U16_F": session 0x%x connected\n", sc->sc_ethif->name[0], sc->sc_ethif->name[1], sc->sc_ethif->num, session));
       sc->sc_state = PPPOE_STATE_SESSION;
+	  _hx_printf("pppoe: %c%c%"U16_F": session 0x%x connected.\r\n", 
+		  sc->sc_ethif->name[0], sc->sc_ethif->name[1], 
+		  sc->sc_ethif->num, session);
       pppoe_linkstatus_up(sc); /* notify upper layers */
       break;
     case PPPOE_CODE_PADT:
@@ -894,7 +898,11 @@ pppoe_do_disconnect(struct pppoe_softc *sc)
 static void
 pppoe_abort_connect(struct pppoe_softc *sc)
 {
-  __LOG("%c%c%"U16_F": could not establish connection\n", sc->sc_ethif->name[0], sc->sc_ethif->name[1], sc->sc_ethif->num);
+  __LOG("%c%c%"U16_F": pppoe connect failed[state = %d]\r\n", 
+	  sc->sc_ethif->name[0], 
+	  sc->sc_ethif->name[1], 
+	  sc->sc_ethif->num,
+	  sc->sc_state);
   sc->sc_state = PPPOE_STATE_CLOSING;
 
   sc->sc_linkStatusCB(sc->sc_pd, 0); /* notify upper layers */

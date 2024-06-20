@@ -33,6 +33,15 @@ BOOL __raw_spin_lock(__SPIN_LOCK* sl);
 void __raw_spin_unlock(__SPIN_LOCK* sl);
 
 /* 
+ * Architecture spec rw spin lock routines, must be implementd in
+ * arch specific source code too.
+ */
+void __raw_rw_slock_rlock(__RW_SPIN_LOCK* rw_slock);
+void __raw_rw_slock_runlock(__RW_SPIN_LOCK* rw_slock);
+void __raw_rw_slock_wlock(__RW_SPIN_LOCK* rw_slock);
+void __raw_rw_slock_wunlock(__RW_SPIN_LOCK* rw_slock);
+
+/* 
  * Critical section operations under SMP,these routines must be 
  * implemented in arch specific source code.
  * These routines also must not be called directly.
@@ -66,6 +75,12 @@ unsigned long __smp_leave_critical_section(__SPIN_LOCK* sl, unsigned long dwFlag
 /* Acquire and release the specified spin lock. */
 #define __ACQUIRE_SPIN_LOCK(sl_name) __raw_spin_lock(&sl_name)
 #define __RELEASE_SPIN_LOCK(sl_name) __raw_spin_unlock(&sl_name)
+
+/* Acquire and release a read-write spin lock. */
+#define __RW_SLOCK_RLOCK(lock_name) __raw_rw_slock_rlock(&lock_name)
+#define __RW_SLOCK_RUNLOCK(lock_name) __raw_rw_slock_runlock(&lock_name)
+#define __RW_SLOCK_WLOCK(lock_name) __raw_rw_slock_wlock(&lock_name)
+#define __RW_SLOCK_WUNLOCK(lock_name) __raw_rw_slock_wunlock(&lock_name)
 
 /* General memory barriers. */
 #if defined(__CFG_SYS_SMP)

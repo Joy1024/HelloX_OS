@@ -28,10 +28,14 @@
 #include "proto.h"
 #include "netcfg.h"
 #include "netmgr.h"
+#include "cap/capture.h"
 
 #include "kapi.h"
 #include "shell.h"
 #include "network.h"
+#include "ipseccmd.h"
+#include "vticmd.h"
+#include "rtcmd.h"
 
 #ifdef __CFG_NET_DHCP_SERVER
 #include "dhcp_srv/dhcp_srv.h"
@@ -56,7 +60,6 @@ static DWORD help(__CMD_PARA_OBJ*);       //help sub-command's handler.
 static DWORD _exit(__CMD_PARA_OBJ*);      //exit sub-command's handler.
 static DWORD iflist(__CMD_PARA_OBJ*);
 static DWORD ping(__CMD_PARA_OBJ*);
-static DWORD route(__CMD_PARA_OBJ*);
 static DWORD netstat(__CMD_PARA_OBJ*);    //Show out IP layer statistics counter.
 static DWORD showint(__CMD_PARA_OBJ*);    //Display ethernet interface's statistics information.
 static DWORD showdbg(__CMD_PARA_OBJ*);    //Display ethernet related debugging information.
@@ -65,6 +68,8 @@ static DWORD scan(__CMD_PARA_OBJ*);       //Rescan the WiFi networks.
 static DWORD setif(__CMD_PARA_OBJ*);      //Set a given interface's configurations.
 static DWORD showgif(__CMD_PARA_OBJ*);
 static DWORD setgif(__CMD_PARA_OBJ*);
+static DWORD capstart(__CMD_PARA_OBJ*);
+static DWORD capstop(__CMD_PARA_OBJ*);
 
 /* DHCP Server control command. */
 #ifdef __CFG_NET_DHCP_SERVER
@@ -94,32 +99,36 @@ static struct __FDISK_CMD_MAP{
 	DWORD                (*CommandHandler)(__CMD_PARA_OBJ*);
 	LPSTR                lpszHelpInfo;
 }SysDiagCmdMap[] = {
-	{ "iflist",     iflist,    "  iflist   : Show all network interface(s) in system."},
-	{ "ping",       ping,      "  ping     : Check a specified host's reachbility."},
-	{ "route",      route,     "  route    : List all route entry(ies) in system."},
-	{ "showint",    showint,   "  showint  : Display ethernet interface's statistics information."},
-	{ "showdbg",    showdbg,   "  showdbg  : Display ethernet related debugging info." },
-	{ "netstat",    netstat,   "  netstat  : Show out network statistics counter." },
-	{ "assoc",      assoc,     "  assoc    : Associate to a specified WiFi SSID."},
-	{ "scan",       scan,      "  scan     : Scan WiFi networks and show result."},
-	{ "setif",      setif,     "  setif    : Set IP configurations to a given interface."},
-	{ "showgif",    showgif,   "  showgif  : Show all generic netif in system."},
-	{ "setgif",     setgif,    "  setgif   : Set configuration of a genif."},
+	{ "iflist",     iflist,        "  iflist   : Show all network interface(s) in system."},
+	{ "ping",       ping,          "  ping     : Check a specified host's reachbility."},
+	{ "showint",    showint,       "  showint  : Display ethernet interface's statistics information."},
+	{ "showdbg",    showdbg,       "  showdbg  : Display ethernet related debugging info." },
+	{ "netstat",    netstat,       "  netstat  : Show out network statistics counter." },
+	{ "assoc",      assoc,         "  assoc    : Associate to a specified WiFi SSID."},
+	{ "scan",       scan,          "  scan     : Scan WiFi networks and show result."},
+	{ "iproute",    iproute_entry, "  iproute  : Manages ip routing table fo the system."},
+	{ "setif",      setif,         "  setif    : Set IP configurations to a given interface."},
+	{ "showgif",    showgif,       "  showgif  : Show all generic netif in system."},
+	{ "setgif",     setgif,        "  setgif   : Set configuration of a genif."},
+	{ "capstart",   capstart,      "  capstart : Start capture packet on genif."},
+	{ "capstop",    capstop,       "  capstop  : Stop capture packet on genif."},
 #ifdef __CFG_NET_DHCP_SERVER
-	{ "dhcpd",      dhcpd,     "  dhcpd    : DHCP Server control commands." },
+	{ "dhcpd",      dhcpd,         "  dhcpd    : DHCP Server control commands." },
 #endif
 #ifdef __CFG_NET_PPPOE
-	{ "pppoe",      pppoe,     "  pppoe    : PPPoE function control commands." },
+	{ "pppoe",      pppoe,         "  pppoe    : PPPoE function control commands." },
 #endif
 #ifdef __CFG_NET_NAT
-	{ "nat",        nat,       "  nat      : NAT control commands." },
+	{ "nat",        nat,           "  nat      : NAT control commands." },
 #endif
 #ifdef __CFG_NET_DPI
-	{ "dpi",        dpi,       "  dpi      : DPI function control commands."},
+	{ "dpi",        dpi,           "  dpi      : DPI function control commands."},
 #endif
-	{ "help",       help,      "  help     : Print out this screen." },
-	{ "exit",       _exit,     "  exit     : Exit the application." },
-	{ NULL,		   NULL,      NULL}
+	{ "ipsec",      ipsec_entry,   "  ipsec    : ipsec diagnostic or operation."},
+	{ "vti",        vti_entry,     "  vti      : Virtual tunnel interface management."},
+	{ "help",       help,          "  help     : Print out this screen." },
+	{ "exit",       _exit,         "  exit     : Exit the application." },
+	{ NULL,		    NULL,          NULL}
 };
 
 static DWORD QueryCmdName(LPSTR pMatchBuf,INT nBufLen)
@@ -235,12 +244,6 @@ static DWORD help(__CMD_PARA_OBJ* lpCmdObj)
 		PrintLine(SysDiagCmdMap[dwIndex].lpszHelpInfo);
 		dwIndex ++;
 	}
-	return SHELL_CMD_PARSER_SUCCESS;
-}
-
-//route command's implementation.
-static DWORD route(__CMD_PARA_OBJ* lpCmdObj)
-{
 	return SHELL_CMD_PARSER_SUCCESS;
 }
 
@@ -458,21 +461,23 @@ __TERMINAL:
  */
 static void ShowIf(struct netif* pIf)
 {
-	char buff[128];
+	__GENERIC_NETIF* pGenif = pIf->pGenif;
+	char* genif_name = "[NULL]";
 	
+	if (pGenif)
+	{
+		genif_name = pGenif->genif_name;
+	}
+
 	_hx_printf("  --------------------------------------\r\n");
-	_hx_sprintf(buff,"  Inetface name : %c%c",pIf->name[0],pIf->name[1]);
-	PrintLine(buff);
-	_hx_sprintf(buff,"      IPv4 address   : %s",inet_ntoa(pIf->ip_addr));
-	PrintLine(buff);
-	_hx_sprintf(buff,"      IPv4 mask      : %s",inet_ntoa(pIf->netmask));
-	PrintLine(buff);
-	_hx_sprintf(buff,"      IPv4 gateway   : %s",inet_ntoa(pIf->gw));
-	PrintLine(buff);
-	_hx_sprintf(buff,"      Interface MTU  : %d",pIf->mtu);
-	PrintLine(buff);
-	_hx_sprintf(buff,"      If flags       : 0x%X", pIf->flags);
-	PrintLine(buff);
+	_hx_printf("  Inetface name : %c%c\r\n",pIf->name[0],pIf->name[1]);
+	_hx_printf("    IPv4 address     : %s\r\n",inet_ntoa(pIf->ip_addr));
+	_hx_printf("    IPv4 mask        : %s\r\n",inet_ntoa(pIf->netmask));
+	_hx_printf("    IPv4 gateway     : %s\r\n",inet_ntoa(pIf->gw));
+	_hx_printf("    Interface MTU    : %d\r\n",pIf->mtu);
+	_hx_printf("    If flags         : 0x%X\r\n", pIf->flags);
+	_hx_printf("    Associated genif : %s\r\n", genif_name);
+	_hx_printf("    I/O routines     : 0x%X/0x%X\r\n", pIf->input, pIf->output);
 }
 
 /* Handler of iflist command. */
@@ -612,6 +617,14 @@ static DWORD setgif(__CMD_PARA_OBJ* lpCmdObj)
 	/* Just configure the genif if all parameters are OK. */
 	if (bAddrOk && bMaskOk && bGwOk)
 	{
+		/*
+		 * Release DHCP configuration on this genif
+		 * and disable DHCP on the genif, since
+		 * static address is used.
+		 */
+		NetworkManager.SetGenifConfig(genif_index, GENIF_CONFIG_DHCP, 2, NULL);
+		NetworkManager.SetGenifConfig(genif_index, GENIF_CONFIG_DHCP, 1, NULL);
+
 		int ret_val = NetworkManager.AddGenifAddress(genif_index,
 			NETWORK_PROTOCOL_TYPE_IPV4,
 			comm_addr,
@@ -685,6 +698,8 @@ static void ipstat()
 	_hx_printf("  rx             : %d\r\n", lwip_stats.ip.recv);
 	_hx_printf("  tx             : %d\r\n", lwip_stats.ip.xmit);
 	_hx_printf("  forwarded      : %d\r\n", lwip_stats.ip.fw);
+	_hx_printf("  ctx_xmit       : %d\r\n", lwip_stats.ip.ctx_xmit);
+	_hx_printf("  ctx_xmit_err   : %d\r\n", lwip_stats.ip.ctx_xmit_err);
 	_hx_printf("  droped         : %d\r\n", lwip_stats.ip.drop);
 	_hx_printf("  invalid length : %d\r\n", lwip_stats.ip.lenerr);
 	_hx_printf("  checksum err   : %d\r\n", lwip_stats.ip.chkerr);
@@ -948,6 +963,7 @@ static DWORD dhcpd(__CMD_PARA_OBJ* lpCmdObj)
 		ShowDhcpAlloc();
 		return NET_CMD_SUCCESS;
 	}
+	_hx_printf("  Wait a short while...\r\n");
 	DHCPSrv_Start_Onif(subcmd);
 	return NET_CMD_SUCCESS;
 }
@@ -1279,6 +1295,7 @@ static void natUsage(char* subcmd)
 		_hx_printf("Usage:\r\n");
 		_hx_printf("  nat enable [int_name]\r\n");
 		_hx_printf("  nat disable [int_name]\r\n");
+		_hx_printf("  nat stat\r\n");
 		_hx_printf("  nat list [entry_num]\r\n");
 		return;
 	}
@@ -1499,6 +1516,37 @@ static DWORD dpi(__CMD_PARA_OBJ* lpCmdObj)
 	}
 
 __TERMINAL:
+	return NET_CMD_SUCCESS;
+}
+
+/* Start or stop capture on a specified genif. */
+static DWORD capstart(__CMD_PARA_OBJ* lpCmdObj)
+{
+	int genif_index = -1;
+	
+	if (lpCmdObj->byParameterNum <= 1)
+	{
+		_hx_printf("  Usage: capstart [genif-index]\r\n");
+		return NET_CMD_SUCCESS;
+	}
+	genif_index = atol(lpCmdObj->Parameter[1]);
+	/* Just invoke the command handler. */
+	CaptureStart(genif_index);
+	return NET_CMD_SUCCESS;
+}
+
+static DWORD capstop(__CMD_PARA_OBJ* lpCmdObj)
+{
+	int genif_index = -1;
+
+	if (lpCmdObj->byParameterNum <= 1)
+	{
+		_hx_printf("  Usage: capstop [genif-index]\r\n");
+		return NET_CMD_SUCCESS;
+	}
+	genif_index = atol(lpCmdObj->Parameter[1]);
+	/* Just invoke the command handler. */
+	CaptureStop(genif_index);
 	return NET_CMD_SUCCESS;
 }
 

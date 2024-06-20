@@ -233,7 +233,6 @@ static BOOL ConInitialize(__CONSOLE* pConsole)
 /* Destructor of the console object. */
 static VOID ConUninitialize(__CONSOLE* pConsole)
 {
-
 	BUG_ON(NULL == pConsole);
 
 	//Close COM interface.
